@@ -1,0 +1,25 @@
+// The standalone edgeglint Worker. Wrangler 4.145.0 or a subsequent version is necessary for the "analytics" binding.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "edgeglint",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-10-01",
+  // The collector writes to this dataset.
+  "analytics_engine_datasets": [{ "binding": "TELEMETRY", "dataset": "edgeglint" }],
+  // The dashboard and the health route read the dataset with SQL. No API token is necessary.
+  "analytics": { "binding": "ANALYTICS_SQL" },
+  // LIMITER: 60 beacons each minute for each client IP, at each Cloudflare location. The Worker does not keep the IP.
+  // PROBE_LIMITER: 5 health queries with p each minute, for all clients together, at each Cloudflare location.
+  "ratelimits": [
+    { "name": "LIMITER", "namespace_id": "1001", "simple": { "limit": 60, "period": 60 } },
+    { "name": "PROBE_LIMITER", "namespace_id": "1002", "simple": { "limit": 5, "period": 60 } }
+  ],
+  // COLLECT "off" stops all collection.
+  // Set DASH_KEY as a secret: npx wrangler secret put DASH_KEY
+  // Set SITES (your host names) and ROUTES (your paths), for example "SITES": "example.com", "ROUTES": "/,/about,/blog/*".
+  "vars": { "COLLECT": "on" },
+  // The Worker records each invocation. These records show request URLs without the query string.
+  "observability": { "enabled": true, "logs": { "invocation_logs": true }, "redact_query_string": true }
+  // Send the edgeglint paths of your site to this Worker:
+  // "routes": [{ "pattern": "example.com/api/t*", "zone_name": "example.com" }]
+}

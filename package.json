@@ -1,0 +1,23 @@
+{
+  "name": "edgeglint",
+  "version": "0.2.0",
+  "description": "Privacy-aware first-party web analytics on Cloudflare Workers and Analytics Engine: scroll depth, click counts, errors and Core Web Vitals without cookies or identifiers",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node scripts/build.js",
+    "size": "node scripts/build.js --size",
+    "pretest": "node scripts/build.js",
+    "test": "node --test test/*.test.js",
+    "predev": "npm run build",
+    "dev": "wrangler dev",
+    "predeploy": "npm run build",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "wrangler": "4.151.3"
+  }
+}

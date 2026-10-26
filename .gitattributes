@@ -1,0 +1,2 @@
+# Each branch can add technical terms to the word list without a merge conflict.
+.ste-allow merge=union

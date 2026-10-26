@@ -1,0 +1,7 @@
+node_modules/
+dist/
+src/tracker.built.js
+.claude/worktrees/
+.DS_Store
+src/version.js
+.wrangler/

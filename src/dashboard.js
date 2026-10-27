@@ -270,7 +270,7 @@ export const CLIENT = `(() => {
     if (list.length > limit) {
       const more = $("button", parent, \`+\${list.length - limit} more\`, "more");
       more.type = "button";
-      tip(more, list.slice(limit).map((r) => \`\${label(r)}: \${fmt(value(r))}\`).join(" · "));
+      tip(more, list.slice(limit).map((r) => detail ? detail(r) : \`\${label(r)}: \${fmt(value(r))}\`).join(" · "));
     }
   };
   const group = (parent, title, list, label, limit = 3, value, detail) => {
@@ -344,7 +344,7 @@ export const CLIENT = `(() => {
       metric(vitals, "LCP average", cwv.lcp.avg == null ? "-" : fmt(cwv.lcp.avg) + "ms", \`Average of \${fmt(cwv.lcp.n)} measured LCP rows.\`);
       metric(vitals, "CLS average", cwv.cls.avg == null ? "-" : fmt(cwv.cls.avg, 3, 1e-3), \`Average of \${fmt(cwv.cls.n)} measured CLS rows.\`);
       group(quality, "Errors", err.rows, (r) => r.class + " " + r.script + ":" + r.line);
-      group(quality, "Outbound & downloads", out.rows, (r) => r.target);
+      group(quality, "Outbound & downloads", out.rows, (r) => \`\${r.kind == "dl" ? "." : ""}\${r.target}\`);
     } catch (e) {
       if (id != loadId) return;
       main.replaceChildren($("p", null, "Cannot load the data: " + e.message));

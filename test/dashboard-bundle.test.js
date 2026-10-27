@@ -26,7 +26,7 @@ test("the bundled dashboard fetches data with keepNames", async () => {
   assert.equal(script[1], nonce);
 
   const node = () => ({
-    children: [], textContent: "", value: "",
+    children: [], textContent: "", value: "", style: {},
     append(child) { this.children.push(child); },
     replaceChildren(...children) { this.children = children; },
     setAttribute() {},

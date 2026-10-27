@@ -1,7 +1,7 @@
 # edgeglint
 
 edgeglint gives privacy-aware analytics on Cloudflare, with no measurement cookies or identifiers.
-It adds scroll depth, element click counts, JavaScript errors and Core Web Vitals, with no collection in regions where consent is necessary.
+It adds scroll depth, element click counts, JavaScript errors and Core Web Vitals. For specified country codes in the EEA, UK, Switzerland and related areas, the rule sends an empty tracker. It also drops reports from these requests. This rule does not show where consent is necessary.
 
 Cloudflare Web Analytics has Core Web Vitals, but no scroll depth, element click counts or JavaScript errors.
 See the [research and decisions](docs/research.md) for the sources, market table, legal analysis and deployment lessons.
@@ -20,7 +20,7 @@ A visitor-selected opt-out cookie and a dashboard authentication cookie have dif
 ## How it works
 
 - `GET /api/t.js` sends a tracker of at most 3,072 bytes gzip, with `Cache-Control: no-store`.
-- The edge sends an empty script in the EEA, UK, Switzerland and related areas. It also sends no tracker to unknown countries or Tor.
+- The edge uses Cloudflare's request country code to send an empty script for the EEA, UK, Switzerland and related areas. It also sends no tracker for unknown country codes or Tor.
 - The collector discards beacons from those regions. It sends 204 in each condition.
 - The tracker sends delta beacons when the tab becomes hidden and at `pagehide`. Only the first beacon counts a pageview.
 - Subsequent beacons contain new clicks, errors, outbound clicks and foreground dwell. The back/forward cache continues the same page load.
@@ -161,6 +161,8 @@ See [Analytics Engine limits](https://developers.cloudflare.com/analytics/analyt
 - The geo policy does not measure the EEA, UK, Switzerland, related areas, unknown countries and Tor. It decreases measurement coverage.
 
 The project does not claim to be compliant or banner-free. Each operator must get a legal review for the deployment.
+
+The country rule decreases collection. GDPR, ePrivacy, local law and cross-border data rules can continue to apply. Cloudflare can keep request logs. The host settings control these logs.
 See [research and decisions](docs/research.md) for the sources, legal limits and decisions.
 
 ## Status

@@ -522,6 +522,8 @@ test("XSS: the client puts the fixture markup into the DOM as text only", async 
   assert.ok(texts(dom).some((t) => t.includes("<img src=x onerror=alert(1)>")));
   assert.ok(dom.all.every((e) => Object.values(e.attrs).every((v) => !v.includes("<"))));
   assert.ok(!dom.ids.main.children.some((c) => /Cannot load/.test(c.textContent)));
+  assert.ok(texts(dom).includes("Viewport width"));
+  assert.ok(texts(dom).includes("Small (<600 px)"));
 });
 
 test("zero rows: the client shows - for a null average and does not multiply null", async () => {

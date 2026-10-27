@@ -283,7 +283,7 @@ export const CLIENT = `(() => {
     }
   };
   const withUnit = (n, unit, d = 0, m = 1) => { const value = fmt(n, d, m); return value == "-" ? value : value + unit; };
-  const devices = { s: "Phone", m: "Tablet", l: "Desktop" };
+  const devices = { s: "Small (<600 px)", m: "Medium (600–1023 px)", l: "Large (≥1024 px)" };
   const load = async () => {
     const id = ++loadId;
     main.replaceChildren($("p", null, "Loading..."));
@@ -299,7 +299,7 @@ export const CLIENT = `(() => {
         return;
       }
       columns("Pageviews by day", pv.daily);
-      for (const [title, key] of [["Top pages", "paths"], ["Referrers", "referrers"], ["Countries", "countries"], ["Browsers", "browsers"], ["Operating systems", "os"], ["Devices", "devices"]]) bars(title, pv[key], (r) => key == "devices" ? (devices[r.k] || r.k) : r.k);
+      for (const [title, key] of [["Top pages", "paths"], ["Referrers", "referrers"], ["Countries", "countries"], ["Browsers", "browsers"], ["Operating systems", "os"], ["Viewport width", "devices"]]) bars(title, pv[key], (r) => key == "devices" ? (devices[r.k] || r.k) : r.k);
       bars("Scroll depth (pageviews by maximum depth)", pv.scroll, (r) => fmt(r.k * 10) + " %");
       tiles("Core Web Vitals · measured rows only", [["LCP average", withUnit(cwv.lcp.avg, " ms")], ["CLS average", fmt(cwv.cls.avg, 3, 1e-3)]]);
       bars("Clicks by element", clk.rows, (r) => \`\${r.path} \${r.el}\`, (r) => r.clicks, (r) => \`(rage \${fmt(r.rage)}, dead \${fmt(r.dead)})\`);

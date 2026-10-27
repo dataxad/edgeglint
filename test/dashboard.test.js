@@ -284,6 +284,18 @@ test("C2: pv counts use double1, visits double7, quick exits double3, dwell doub
   assert.equal(DEMO.pv.totals.avg_dwell, Math.round(DEMO.pv.totals.dwell / DEMO.pv.totals.pageviews));
 });
 
+test("demo dates are made when the response is read", () => {
+  const now = Date.now;
+  try {
+    Date.now = () => Date.UTC(2026, 9, 27);
+    assert.equal(DEMO.pv.daily.at(-1).k, "2026-10-27 00:00:00");
+    Date.now = () => Date.UTC(2026, 9, 28);
+    assert.equal(DEMO.pv.daily.at(-1).k, "2026-10-28 00:00:00");
+  } finally {
+    Date.now = now;
+  }
+});
+
 test("the data route maps the SQL rows", async () => {
   const calls = [];
   const ANALYTICS_SQL = { query: async (q) => (calls.push(q), { data: [{ k: "/", n: "5", pageviews: "5", avg_scroll: "4.5" }], rows: 1 }) };
@@ -476,7 +488,7 @@ test("0 rows: a row of nulls gives 0 for totals and null for averages", async ()
 });
 
 // A fake DOM for the client script. It records each text and attribute, and it throws on innerHTML.
-const fakeDom = (data) => {
+const fakeDom = (data, fetchOverride) => {
   const all = [];
   const node = (tag) => {
     const e = { tag, children: [], attrs: {}, textContent: "", value: "", className: "", title: "" };
@@ -489,7 +501,7 @@ const fakeDom = (data) => {
   };
   const ids = { main: node("main"), site: node("select"), days: Object.assign(node("select"), { value: "7" }) };
   const document = { createElement: node, createElementNS: (ns, tag) => node(tag), getElementById: (id) => ids[id] };
-  const fetch = async (u) => ({ ok: true, json: async () => data[new URL(u, "https://x.test").searchParams.get("kind")] });
+  const fetch = fetchOverride || (async (u) => ({ ok: true, json: async () => data[new URL(u, "https://x.test").searchParams.get("kind")] }));
   return { all, ids, globals: { document, fetch, location: { hostname: "example.com" } } };
 };
 const run = async (data) => {
@@ -510,8 +522,27 @@ test("XSS: the client puts the fixture markup into the DOM as text only", async 
 
 test("zero rows: the client shows - for a null average and does not multiply null", async () => {
   const empty = { ...DEMO, pv: { ...DEMO.pv, totals: { pageviews: 0, visits: 0, quick_exits: 0, avg_scroll: null, dwell: 0, avg_dwell: null } }, cwv: { lcp: { avg: null, n: 0 }, cls: { avg: null, n: 0 } } };
-  const tiles = (await run(empty)).all.filter((e) => e.tag == "strong").map((e) => e.textContent);
-  assert.deepEqual(tiles, ["0", "0", "0", "- %", "- s", "- ms", "-"]);
+  const dom = await run(empty);
+  assert.deepEqual(dom.all.filter((e) => e.tag == "strong").map((e) => e.textContent), ["0", "0", "0", "-", "-"]);
+  assert.ok(texts(dom).includes("No measurements yet"));
+});
+
+test("a late response cannot replace the current date range", async () => {
+  let finishOld;
+  const fetch = async (url) => {
+    const q = new URL(url, "https://x.test").searchParams;
+    if (q.get("kind") == "pv" && q.get("days") == "7") return new Promise((resolve) => { finishOld = resolve; });
+    return { ok: true, json: async () => DEMO[q.get("kind")] };
+  };
+  const dom = fakeDom(DEMO, fetch), g = dom.globals;
+  new Function(...Object.keys(g), CLIENT)(...Object.values(g));
+  for (let i = 0; i < 5; i++) await new Promise((r) => setImmediate(r));
+  dom.ids.days.value = "30";
+  await dom.ids.days.onchange();
+  assert.ok(texts(dom).includes("4,210"));
+  finishOld({ ok: true, json: async () => ({ ...DEMO.pv, totals: { ...DEMO.pv.totals, pageviews: 1 } }) });
+  for (let i = 0; i < 5; i++) await new Promise((r) => setImmediate(r));
+  assert.ok(texts(dom).includes("4,210"));
 });
 
 test("a dataset that does not exist yet gives zeros and nulls; another SQL error gives 503", async () => {

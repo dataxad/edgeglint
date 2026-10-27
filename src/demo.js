@@ -1,12 +1,12 @@
 // Fixture answers for DASH_DEMO=1. They have the same shape as the SQL answers, so the page shows correctly with no binding.
 // One path and one element contain markup: the page must show them as text.
-const day = (i) => `2026-10-${String(15 + i).padStart(2, "0")} 00:00:00`;
+const day = (i) => new Date(Date.now() - (6 - i) * 864e5).toISOString().slice(0, 10) + " 00:00:00";
 const kn = (...pairs) => pairs.map(([k, n]) => ({ k, n }));
 export default {
   sites: { sites: [{ site: "example.com" }, { site: "demo.example.org" }] },
   pv: {
     totals: { pageviews: 4210, visits: 2980, quick_exits: 610, avg_scroll: 5.8, dwell: 197870, avg_dwell: 47 },
-    daily: [520, 610, 580, 640, 700, 590, 570].map((n, i) => ({ k: day(i), n })),
+    get daily() { return [520, 610, 580, 640, 700, 590, 570].map((n, i) => ({ k: day(i), n })); },
     paths: kn(["/", 1900], ["/pricing", 820], ["/blog/hello", 610], ["/<script>alert(1)</script>", 3]),
     referrers: kn(["direct", 1800], ["internal", 1230], ["ycombinator.com", 640], ["google.com", 540]),
     countries: kn(["US", 2100], ["CA", 610], ["IL", 420], ["JP", 300], ["AU", 210]),

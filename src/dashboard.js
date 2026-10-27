@@ -204,7 +204,7 @@ const dash = async (request, env) => {
   // ponytail: a nonce CSP lets the inline style and script operate. A stricter CSP header from the site can stop the page.
   // Upgrade: send the script and the style from their own routes with `'self'`.
   const nonce = crypto.randomUUID();
-  return new Response(page(nonce), {
+  return new Response(page(nonce, env.DASH_DEMO == "1"), {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
       "Cache-Control": "no-store",
@@ -235,16 +235,18 @@ export const CLIENT = `(() => {
   // null gives "-". The function multiplies by m only a number.
   const fmt = (n, d = 0, m = 1) => (n == null || n === "" || isNaN(n) ? "-" : (Number(n) * m).toLocaleString(undefined, { maximumFractionDigits: d }));
   const main = document.getElementById("main"), site = document.getElementById("site"), days = document.getElementById("days");
+  let loadId = 0;
   const get = (kind) => fetch(\`/api/t/dash/data?kind=\${kind}&days=\${days.value}&site=\${encodeURIComponent(site.value)}\`).then((r) => (r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status))));
-  const section = (title) => {
+  const section = (title, wide = false) => {
     const s = $("section", main);
+    if (wide) s.className = "wide";
     $("h2", s, title);
     return s;
   };
   // One horizontal bar for each row: the name, an SVG bar, the value and an optional note.
   const bars = (title, list, label, value = (r) => r.n, note) => {
     const s = section(title);
-    if (!list.length) return $("p", s, "No data.");
+    if (!list.length) return $("p", s, "No reports in this range.").className = "empty";
     const max = Math.max(...list.map((r) => Number(value(r)))) || 1;
     for (const r of list) {
       const row = $("div", s);
@@ -256,8 +258,13 @@ export const CLIENT = `(() => {
     }
   };
   const columns = (title, list) => {
-    const s = section(title);
-    if (!list.length) return $("p", s, "No data.");
+    const s = section(title, true);
+    if (!list.length) return $("p", s, "No pageviews in this range.").className = "empty";
+    if (list.length == 1) {
+      $("strong", s, fmt(list[0].n) + " pageviews").className = "single-value";
+      $("p", s, String(list[0].k).slice(0, 10) + " · One day has data. Select a longer range to see a trend.").className = "dim";
+      return;
+    }
     const max = Math.max(...list.map((r) => Number(r.n))) || 1, w = 100 / list.length;
     const g = svg("svg", { viewBox: "0 0 100 40", preserveAspectRatio: "none", class: "cols", role: "img" }, s);
     list.forEach((r, i) => {
@@ -267,7 +274,7 @@ export const CLIENT = `(() => {
     $("p", s, \`\${String(list[0].k).slice(0, 10)} to \${String(list.at(-1).k).slice(0, 10)}\`).className = "dim";
   };
   const tiles = (title, pairs) => {
-    const s = section(title), box = $("div", s);
+    const s = section(title, true), box = $("div", s);
     box.className = "tiles";
     for (const [k, v] of pairs) {
       const t = $("div", box);
@@ -275,21 +282,31 @@ export const CLIENT = `(() => {
       $("strong", t, v);
     }
   };
+  const withUnit = (n, unit, d = 0, m = 1) => { const value = fmt(n, d, m); return value == "-" ? value : value + unit; };
+  const devices = { s: "Phone", m: "Tablet", l: "Desktop" };
   const load = async () => {
+    const id = ++loadId;
     main.replaceChildren($("p", null, "Loading..."));
     try {
       const [pv, cwv, clk, err, out] = await Promise.all(["pv", "cwv", "clk", "err", "out"].map(get));
+      if (id != loadId) return;
       main.replaceChildren();
       const t = pv.totals;
-      tiles("Totals", [["Pageviews", fmt(t.pageviews)], ["Visits", fmt(t.visits)], ["Quick exits", fmt(t.quick_exits)], ["Average scroll", fmt(t.avg_scroll, 0, 10) + " %"], ["Average dwell", fmt(t.avg_dwell) + " s"]]);
-      columns("Pageviews per day", pv.daily);
-      for (const [title, key] of [["Paths", "paths"], ["Referrers", "referrers"], ["Countries", "countries"], ["Browsers", "browsers"], ["Operating systems", "os"], ["Devices", "devices"]]) bars(title, pv[key], (r) => r.k);
+      tiles("At a glance", [["Pageviews", fmt(t.pageviews)], ["Visits", fmt(t.visits)], ["Quick exits", fmt(t.quick_exits)], ["Average scroll", withUnit(t.avg_scroll, " %", 0, 10)], ["Average dwell", withUnit(t.avg_dwell, " s")]]);
+      if (!Number(t.pageviews)) {
+        const s = section("No measurements yet", true);
+        $("p", s, "Try another site or date range. Privacy and country rules can also stop collection.").className = "empty";
+        return;
+      }
+      columns("Pageviews by day", pv.daily);
+      for (const [title, key] of [["Top pages", "paths"], ["Referrers", "referrers"], ["Countries", "countries"], ["Browsers", "browsers"], ["Operating systems", "os"], ["Devices", "devices"]]) bars(title, pv[key], (r) => key == "devices" ? (devices[r.k] || r.k) : r.k);
       bars("Scroll depth (pageviews by maximum depth)", pv.scroll, (r) => fmt(r.k * 10) + " %");
-      tiles("Core Web Vitals (rows with a value)", [["LCP average", fmt(cwv.lcp.avg) + " ms"], ["CLS average", fmt(cwv.cls.avg, 3, 1e-3)]]);
+      tiles("Core Web Vitals · measured rows only", [["LCP average", withUnit(cwv.lcp.avg, " ms")], ["CLS average", fmt(cwv.cls.avg, 3, 1e-3)]]);
       bars("Clicks by element", clk.rows, (r) => \`\${r.path} \${r.el}\`, (r) => r.clicks, (r) => \`(rage \${fmt(r.rage)}, dead \${fmt(r.dead)})\`);
       bars("Errors", err.rows, (r) => \`\${r.class} \${r.script}:\${r.line}\`);
       bars("Outbound links and downloads", out.rows, (r) => \`\${r.kind == "dl" ? "." : ""}\${r.target}\`);
     } catch (e) {
+      if (id != loadId) return;
       main.replaceChildren($("p", null, "Cannot load the data: " + e.message));
     }
   };
@@ -308,23 +325,34 @@ const LOGIN = `<!doctype html>
 <body><h1>edgeglint</h1><form method="post" action="/api/t/dash/login"><label>Key <input type="password" name="key" autocomplete="current-password" required></label> <button>Open</button></form></body></html>`;
 
 // The version and the SHA come from src/version.js, which scripts/build.js writes. They are not data from the dataset.
-const page = (nonce) => `<!doctype html>
+const page = (nonce, demo) => `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
-<title>edgeglint</title>
+<title>Overview · edgeglint</title>
 <style nonce="${nonce}">
-:root{--bg:#fff;--fg:#1a1a1a;--dim:#666;--line:#e5e5e5;--bar:#3b6fd4;--card:#f6f7f9}
-@media (prefers-color-scheme:dark){:root{--bg:#121417;--fg:#e8e8e8;--dim:#9aa0a6;--line:#2a2e33;--bar:#7aa2f7;--card:#1b1e22}}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.4 system-ui,sans-serif}
-header,main,footer{max-width:960px;margin:0 auto;padding:12px 16px}header{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-h1{font-size:18px;margin:0 auto 0 0}h2{font-size:15px;margin:24px 0 8px}select{font:inherit;padding:4px;background:var(--card);color:var(--fg);border:1px solid var(--line)}
-section{border-top:1px solid var(--line)}.bar{display:grid;grid-template-columns:minmax(0,2fr) 3fr auto;gap:8px;align-items:center;margin:3px 0}
-.bar span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.bar svg{width:100%;height:10px}rect{fill:var(--bar)}
-.cols{width:100%;height:120px}.dim,footer{color:var(--dim)}.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
-.tiles div{background:var(--card);padding:8px;border-radius:6px}.tiles small{display:block;color:var(--dim)}.tiles strong{font-size:18px}
+:root{color-scheme:dark;--bg:#181818;--fg:#fff;--dim:#9b9b9b;--line:#313131;--bar:#7aa2f7;--card:#1f1f1f;--tile:#272727}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,sans-serif;font-variant-numeric:tabular-nums}
+header,main,footer{max-width:1200px;margin:0 auto;padding-left:24px;padding-right:24px}
+header{padding-top:32px;padding-bottom:32px;display:flex;align-items:end;justify-content:space-between;gap:24px;border-bottom:1px solid var(--line)}
+.brand{font-size:14px;font-weight:700;letter-spacing:-.02em}.brand i{color:var(--bar);font-style:normal}
+h1{font-size:30px;line-height:36px;letter-spacing:-.03em;margin:24px 0 4px}header p{margin:0;color:var(--dim)}
+.controls{display:flex;gap:12px;align-items:end}.controls label{display:grid;gap:4px;color:var(--dim);font-size:12px}
+select{font:500 14px system-ui,sans-serif;padding:8px 12px;min-width:96px;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:8px}
+select:focus-visible{outline:2px solid var(--bar);outline-offset:2px}.demo{display:inline-block;margin-left:12px;padding:2px 8px;border:1px solid var(--line);border-radius:4px;color:var(--dim);font-size:12px;font-weight:500;vertical-align:middle}
+main{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;padding-top:24px;padding-bottom:48px}
+section{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:24px;min-width:0}.wide{grid-column:1/-1}
+h2{font-size:18px;line-height:28px;letter-spacing:-.01em;margin:0 0 16px}
+.bar{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,2fr) auto;gap:12px;align-items:center;min-height:32px;border-top:1px solid var(--line)}
+.bar span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.bar svg{width:100%;height:8px;background:var(--tile);border-radius:4px}.bar rect{fill:var(--bar)}.bar b{font-weight:600}
+.cols{width:100%;height:160px}.cols rect{fill:var(--bar)}.dim,.empty,footer{color:var(--dim)}.empty{margin:0}.single-value{display:block;font-size:24px;margin:8px 0}
+.tiles{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}.tiles div{background:var(--tile);padding:16px;border-radius:8px;min-width:0}
+.tiles small{display:block;color:var(--dim);font-size:12px}.tiles strong{display:block;margin-top:8px;font-size:24px;line-height:32px;letter-spacing:-.02em}
+footer{padding-top:0;padding-bottom:32px;font-size:12px}
+@media(max-width:720px){header{display:block;padding:24px 16px}.controls{margin-top:24px}.controls label{flex:1}select{width:100%}main{display:block;padding:16px}.wide{grid-column:auto}section{margin-bottom:16px;padding:16px}.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.bar{grid-template-columns:minmax(0,1fr) 80px auto}footer{padding:0 16px 24px}}
 </style></head><body>
-<header><h1>edgeglint</h1><label>Site <select id="site"></select></label>
-<label>Days <select id="days"><option>1</option><option selected>7</option><option>30</option><option>90</option></select></label></header>
-<main id="main"></main>
+<header><div><div class="brand">edgeglint<i>●</i>${demo ? '<span class="demo">Demo data</span>' : ''}</div><h1>Site overview</h1><p>Page activity, engagement, and quality in one view.</p></div>
+<div class="controls"><label>Site<select id="site"></select></label>
+<label>Last days<select id="days"><option>1</option><option selected>7</option><option>30</option><option>90</option></select></label></div></header>
+<main id="main" aria-live="polite"></main>
 <footer>edgeglint v${VERSION.version} ${VERSION.sha}</footer>
 <script nonce="${nonce}">${CLIENT}</script>
 </body></html>`;

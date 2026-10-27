@@ -220,9 +220,10 @@ export const dashRoutes = { "GET /api/t/health": health, "GET /api/t/dash": dash
 // The client script puts each data value into the DOM with textContent or setAttribute. It does not use innerHTML.
 // A string keeps bundle helpers out of the client script.
 export const CLIENT = `(() => {
-  const $ = (tag, parent, text) => {
+  const $ = (tag, parent, text, cls) => {
     const e = document.createElement(tag);
     if (text != null) e.textContent = String(text);
+    if (cls) e.className = cls;
     parent?.append(e);
     return e;
   };
@@ -232,92 +233,128 @@ export const CLIENT = `(() => {
     parent?.append(e);
     return e;
   };
-  // null gives "-". The function multiplies by m only a number.
-  const fmt = (n, d = 0, m = 1) => (n == null || n === "" || isNaN(n) ? "-" : (Number(n) * m).toLocaleString(undefined, { maximumFractionDigits: d }));
+  const fmt = (n, d = 0, m = 1) => n == null || n === "" || isNaN(n) ? "-" : (Number(n) * m).toLocaleString(undefined, { maximumFractionDigits: d });
   const main = document.getElementById("main"), site = document.getElementById("site"), days = document.getElementById("days");
   let loadId = 0;
-  const get = (kind) => fetch(\`/api/t/dash/data?kind=\${kind}&days=\${days.value}&site=\${encodeURIComponent(site.value)}\`).then((r) => (r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status))));
-  const section = (title, wide = false) => {
-    const s = $("section", main);
-    if (wide) s.className = "wide";
+  const get = (kind) => fetch(\`/api/t/dash/data?kind=\${kind}&days=\${days.value}&site=\${encodeURIComponent(site.value)}\`).then((r) => r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status)));
+  const card = (title, cls = "") => {
+    const s = $("section", main, null, "card " + cls);
     $("h2", s, title);
     return s;
   };
-  // One horizontal bar for each row: the name, an SVG bar, the value and an optional note.
-  const bars = (title, list, label, value = (r) => r.n, note) => {
-    const s = section(title);
-    if (!list.length) return $("p", s, "No reports in this range.").className = "empty";
-    const max = Math.max(...list.map((r) => Number(value(r)))) || 1;
-    for (const r of list) {
-      const row = $("div", s);
-      row.className = "bar";
-      $("span", row, label(r)).title = label(r);
-      const g = svg("svg", { viewBox: "0 0 100 10", preserveAspectRatio: "none", "aria-hidden": "true" }, row);
-      svg("rect", { width: (100 * Number(value(r))) / max, height: 10, rx: 1 }, g);
-      $("b", row, fmt(value(r)) + (note ? " " + note(r) : ""));
+  let tipId = 0;
+  const tip = (parent, detail) => {
+    parent.tabIndex = 0;
+    const e = $("span", parent, detail, "tip");
+    e.id = "tip-" + ++tipId;
+    parent.setAttribute("aria-describedby", e.id);
+  };
+  const metric = (parent, name, value, detail) => {
+    const e = $("div", parent, null, "metric");
+    $("small", e, name);
+    $("strong", e, value);
+    tip(e, detail);
+  };
+  const rows = (parent, list, label, value = (r) => r.n, limit = 3, detail) => {
+    if (!list.length) return $("p", parent, "No reports in this range.", "empty");
+    const max = Math.max(1, ...list.map((r) => Number(value(r)) || 0));
+    for (const r of list.slice(0, limit)) {
+      const e = $("div", parent, null, "rank");
+      $("span", e, label(r), "rank-label");
+      const track = $("span", e, null, "track");
+      const fill = $("span", track, null, "fill");
+      fill.style.width = Math.max(2, 100 * (Number(value(r)) || 0) / max) + "%";
+      $("b", e, fmt(value(r)));
+      tip(e, detail ? detail(r) : \`\${label(r)}: \${fmt(value(r))}\`);
+    }
+    if (list.length > limit) {
+      const more = $("button", parent, \`+\${list.length - limit} more\`, "more");
+      more.type = "button";
+      tip(more, list.slice(limit).map((r) => \`\${label(r)}: \${fmt(value(r))}\`).join(" · "));
     }
   };
-  const columns = (title, list) => {
-    const s = section(title, true);
-    if (!list.length) return $("p", s, "No pageviews in this range.").className = "empty";
-    if (list.length == 1) {
-      $("strong", s, fmt(list[0].n) + " pageviews").className = "single-value";
-      $("p", s, String(list[0].k).slice(0, 10) + " · One day has data. Select a longer range to see a trend.").className = "dim";
-      return;
-    }
-    const max = Math.max(...list.map((r) => Number(r.n))) || 1, w = 100 / list.length;
-    const g = svg("svg", { viewBox: "0 0 100 40", preserveAspectRatio: "none", class: "cols", role: "img" }, s);
+  const group = (parent, title, list, label, limit = 3, value, detail) => {
+    const e = $("div", parent, null, "group");
+    $("h3", e, title);
+    rows(e, list, label, value, limit, detail);
+  };
+  const trend = (parent, list) => {
+    if (!list.length) return $("p", parent, "No pageviews in this range.", "empty");
+    const total = list.reduce((n, r) => n + Number(r.n || 0), 0);
+    $("strong", parent, fmt(total), "trend-total");
+    $("span", parent, " pageviews in selected days", "trend-caption");
+    if (list.length == 1) return $("p", parent, \`\${String(list[0].k).slice(0, 10)} · Select more days to see a trend.\`, "empty");
+    const width = 620, height = 130, pad = 10;
+    const max = Math.max(1, ...list.map((r) => Number(r.n) || 0));
+    const pts = list.map((r, i) => [pad + i * (width - pad * 2) / (list.length - 1), height - pad - (Number(r.n) || 0) / max * (height - pad * 2)]);
+    const plot = $("div", parent, null, "trend-plot");
+    const g = svg("svg", { viewBox: \`0 0 \${width} \${height}\`, class: "trend", preserveAspectRatio: "none", role: "img", "aria-label": \`Pageviews by day from \${String(list[0].k).slice(0, 10)} to \${String(list.at(-1).k).slice(0, 10)}\` }, plot);
+    svg("line", { x1: pad, y1: height - pad, x2: width - pad, y2: height - pad, class: "axis" }, g);
+    svg("polygon", { points: \`\${pad},\${height - pad} \${pts.map((p) => p.join(",")).join(" ")} \${width - pad},\${height - pad}\`, class: "area" }, g);
+    svg("polyline", { points: pts.map((p) => p.join(",")).join(" "), class: "line" }, g);
+    const marks = $("div", plot, null, "trend-marks");
     list.forEach((r, i) => {
-      const h = (40 * Number(r.n)) / max;
-      svg("title", {}, svg("rect", { x: i * w + w * 0.1, y: 40 - h, width: w * 0.8, height: h }, g)).textContent = \`\${String(r.k).slice(0, 10)}: \${fmt(r.n)}\`;
+      const e = $("button", marks, null, "mark");
+      e.type = "button";
+      e.style.left = \`\${pts[i][0] / width * 100}%\`;
+      e.style.top = \`\${pts[i][1] / height * 100}%\`;
+      const detail = \`\${String(r.k).slice(0, 10)}: \${fmt(r.n)} pageviews\`;
+      e.setAttribute("aria-label", detail);
+      tip(e, detail);
     });
-    $("p", s, \`\${String(list[0].k).slice(0, 10)} to \${String(list.at(-1).k).slice(0, 10)}\`).className = "dim";
+    const axis = $("div", parent, null, "trend-axis");
+    $("span", axis, String(list[0].k).slice(0, 10));
+    $("span", axis, String(list.at(-1).k).slice(0, 10));
   };
-  const tiles = (title, pairs) => {
-    const s = section(title, true), box = $("div", s);
-    box.className = "tiles";
-    for (const [k, v] of pairs) {
-      const t = $("div", box);
-      $("small", t, k);
-      $("strong", t, v);
-    }
-  };
-  const withUnit = (n, unit, d = 0, m = 1) => { const value = fmt(n, d, m); return value == "-" ? value : value + unit; };
-  const devices = { s: "Small (<600 px)", m: "Medium (600–1023 px)", l: "Large (≥1024 px)" };
+  const devices = { s: "<600 px", m: "600–1023 px", l: "≥1024 px" };
   const load = async () => {
     const id = ++loadId;
-    main.replaceChildren($("p", null, "Loading..."));
+    main.replaceChildren($("p", null, "Loading…"));
     try {
       const [pv, cwv, clk, err, out] = await Promise.all(["pv", "cwv", "clk", "err", "out"].map(get));
       if (id != loadId) return;
       main.replaceChildren();
       const t = pv.totals;
-      tiles("At a glance", [["Pageviews", fmt(t.pageviews)], ["Visits", fmt(t.visits)], ["Quick exits", fmt(t.quick_exits)], ["Average scroll", withUnit(t.avg_scroll, " %", 0, 10)], ["Average dwell", withUnit(t.avg_dwell, " s")]]);
+      const kpis = $("div", main, null, "kpis");
+      metric(kpis, "Pageviews", fmt(t.pageviews), "Pageviews count each page load once.");
+      metric(kpis, "Visits", fmt(t.visits), "Visits counted by the first pageview flush.");
+      metric(kpis, "Quick exits", fmt(t.quick_exits), "Visits that left quickly.");
+      metric(kpis, "Avg scroll", t.avg_scroll == null ? "-" : fmt(t.avg_scroll, 0, 10) + "%", "Average maximum scroll depth on measured pageviews.");
+      metric(kpis, "Avg dwell", t.avg_dwell == null ? "-" : fmt(t.avg_dwell) + "s", "Average time spent on a pageview.");
       if (!Number(t.pageviews) && !clk.rows.length && !err.rows.length && !out.rows.length) {
-        const s = section("No measurements yet", true);
-        $("p", s, "Try another site or date range. Privacy and country rules can also stop collection.").className = "empty";
+        const s = card("No measurements yet", "wide");
+        $("p", s, "Try another site or date range. Privacy and country rules can also stop collection.", "empty");
         return;
       }
-      columns("Pageviews by day", pv.daily);
-      for (const [title, key] of [["Top pages", "paths"], ["Referrers", "referrers"], ["Countries", "countries"], ["Browsers", "browsers"], ["Operating systems", "os"], ["Viewport width", "devices"]]) bars(title, pv[key], (r) => key == "devices" ? (devices[r.k] || r.k) : r.k);
-      bars("Scroll depth (pageviews by maximum depth)", pv.scroll, (r) => fmt(r.k * 10) + " %");
-      tiles("Core Web Vitals · measured rows only", [["LCP average", withUnit(cwv.lcp.avg, " ms")], ["CLS average", fmt(cwv.cls.avg, 3, 1e-3)]]);
-      bars("Clicks by element", clk.rows, (r) => \`\${r.path} \${r.el}\`, (r) => r.clicks, (r) => \`(rage \${fmt(r.rage)}, dead \${fmt(r.dead)})\`);
-      bars("Errors", err.rows, (r) => \`\${r.class} \${r.script}:\${r.line}\`);
-      bars("Outbound links and downloads", out.rows, (r) => \`\${r.kind == "dl" ? "." : ""}\${r.target}\`);
+      const activity = card("Activity", "activity");
+      trend(activity, pv.daily);
+      const content = card("Content & sources", "content");
+      group(content, "Top pages", pv.paths, (r) => r.k, 2);
+      group(content, "Referrers", pv.referrers, (r) => r.k, 2);
+      const audience = card("Audience mix", "audience");
+      group(audience, "Countries", pv.countries, (r) => r.k);
+      group(audience, "Browsers", pv.browsers, (r) => r.k);
+      group(audience, "Operating systems", pv.os, (r) => r.k);
+      group(audience, "Viewport width", pv.devices, (r) => devices[r.k] || r.k);
+      const engagement = card("Engagement", "engagement");
+      group(engagement, "Scroll depth", pv.scroll, (r) => fmt(r.k * 10) + "%", 4, (r) => r.n, (r) => \`\${fmt(r.k * 10)}% depth: \${fmt(r.n)} pageviews\`);
+      group(engagement, "Clicks by element", clk.rows, (r) => r.path + " " + r.el, 3, (r) => r.clicks, (r) => \`\${r.path} \${r.el}: \${fmt(r.clicks)} clicks, \${fmt(r.rage)} rage, \${fmt(r.dead)} dead\`);
+      const quality = card("Quality & exits", "quality");
+      const vitals = $("div", quality, null, "vitals");
+      metric(vitals, "LCP average", cwv.lcp.avg == null ? "-" : fmt(cwv.lcp.avg) + "ms", \`Average of \${fmt(cwv.lcp.n)} measured LCP rows.\`);
+      metric(vitals, "CLS average", cwv.cls.avg == null ? "-" : fmt(cwv.cls.avg, 3, 1e-3), \`Average of \${fmt(cwv.cls.n)} measured CLS rows.\`);
+      group(quality, "Errors", err.rows, (r) => r.class + " " + r.script + ":" + r.line);
+      group(quality, "Outbound & downloads", out.rows, (r) => r.target);
     } catch (e) {
       if (id != loadId) return;
       main.replaceChildren($("p", null, "Cannot load the data: " + e.message));
     }
   };
   days.onchange = site.onchange = load;
-  get("sites")
-    .then((d) => d.sites.map((r) => r.site))
-    .catch(() => [])
-    .then((list) => {
-      for (const s of list.length ? list : [location.hostname.replace(/^www\\./, "")]) $("option", site, s).value = s;
-      load();
-    });
+  get("sites").then((d) => d.sites.map((r) => r.site)).catch(() => []).then((list) => {
+    for (const s of list.length ? list : [location.hostname.replace(/^www\\./, "")]) $("option", site, s).value = s;
+    load();
+  });
 })();`;
 
 const LOGIN = `<!doctype html>
@@ -329,25 +366,38 @@ const page = (nonce, demo) => `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
 <title>Overview · edgeglint</title>
 <style nonce="${nonce}">
-:root{color-scheme:dark;--bg:#181818;--fg:#fff;--dim:#9b9b9b;--line:#313131;--bar:#7aa2f7;--card:#1f1f1f;--tile:#272727}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,sans-serif;font-variant-numeric:tabular-nums}
-header,main,footer{max-width:1200px;margin:0 auto;padding-left:24px;padding-right:24px}
-header{padding-top:32px;padding-bottom:32px;display:flex;align-items:end;justify-content:space-between;gap:24px;border-bottom:1px solid var(--line)}
-.brand{font-size:14px;font-weight:700;letter-spacing:-.02em}.brand i{color:var(--bar);font-style:normal}
-h1{font-size:30px;line-height:36px;letter-spacing:-.03em;margin:24px 0 4px}header p{margin:0;color:var(--dim)}
-.controls{display:flex;gap:12px;align-items:end}.controls label{display:grid;gap:4px;color:var(--dim);font-size:12px}
-select{font:500 14px system-ui,sans-serif;padding:8px 12px;min-width:96px;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:8px}
-select:focus-visible{outline:2px solid var(--bar);outline-offset:2px}.demo{display:inline-block;margin-left:12px;padding:2px 8px;border:1px solid var(--line);border-radius:4px;color:var(--dim);font-size:12px;font-weight:500;vertical-align:middle}
-main{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;padding-top:24px;padding-bottom:48px}
-section{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:24px;min-width:0}.wide{grid-column:1/-1}
-h2{font-size:18px;line-height:28px;letter-spacing:-.01em;margin:0 0 16px}
-.bar{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,2fr) auto;gap:12px;align-items:center;min-height:32px;border-top:1px solid var(--line)}
-.bar span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.bar svg{width:100%;height:8px;background:var(--tile);border-radius:4px}.bar rect{fill:var(--bar)}.bar b{font-weight:600}
-.cols{width:100%;height:160px}.cols rect{fill:var(--bar)}.dim,.empty,footer{color:var(--dim)}.empty{margin:0}.single-value{display:block;font-size:24px;margin:8px 0}
-.tiles{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}.tiles div{background:var(--tile);padding:16px;border-radius:8px;min-width:0}
-.tiles small{display:block;color:var(--dim);font-size:12px}.tiles strong{display:block;margin-top:8px;font-size:24px;line-height:32px;letter-spacing:-.02em}
-footer{padding-top:0;padding-bottom:32px;font-size:12px}
-@media(max-width:720px){header{display:block;padding:24px 16px}.controls{margin-top:24px}.controls label{flex:1}select{width:100%}main{display:block;padding:16px}.wide{grid-column:auto}section{margin-bottom:16px;padding:16px}.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.bar{grid-template-columns:minmax(0,1fr) 80px auto}footer{padding:0 16px 24px}}
+:root{color-scheme:dark;--bg:#121721;--fg:#edf4ff;--dim:#9aaac1;--line:#2a3850;--blue:#62a9ff;--mint:#53dcc4;--card:#1b2637;--tile:#223149}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 80% -10%,#213d61 0%,transparent 35%),var(--bg);color:var(--fg);font:13px/1.4 system-ui,sans-serif;font-variant-numeric:tabular-nums}
+header,main,footer{max-width:1440px;margin:0 auto;padding-left:24px;padding-right:24px}
+header{min-height:86px;display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid var(--line)}
+.brand{font-size:13px;font-weight:750;letter-spacing:.04em;text-transform:uppercase}.brand i{color:var(--mint);font-style:normal;margin-left:4px}
+h1{font-size:23px;line-height:1.1;letter-spacing:-.03em;margin:4px 0 0}header p{margin:0;color:var(--dim);font-size:12px}
+.controls{display:flex;gap:12px}.controls label{display:grid;gap:3px;color:var(--dim);font-size:11px}
+select{font:500 13px system-ui,sans-serif;padding:6px 10px;min-width:100px;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:7px}
+select:focus-visible,.metric:focus-visible,.rank:focus-visible,.mark:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
+.demo{display:inline-block;margin-left:10px;padding:1px 7px;border:1px solid var(--line);border-radius:4px;color:var(--dim);font-size:11px;font-weight:500;vertical-align:middle;text-transform:none;letter-spacing:0}
+main{display:grid;grid-template-columns:1.25fr 1fr 1fr;grid-template-rows:auto minmax(205px,1fr) minmax(340px,1.65fr);gap:12px;padding-top:14px;padding-bottom:10px;min-height:calc(100vh - 115px)}
+.card,.kpis{background:rgba(27,38,55,.96);border:1px solid var(--line);border-radius:12px;min-width:0}
+.card{padding:15px 17px;overflow:visible}.card h2{font-size:15px;line-height:1.2;letter-spacing:-.01em;margin:0 0 12px}
+.kpis{grid-column:1/-1;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));padding:10px 0}
+.metric{position:relative;min-width:0;padding:5px 16px;border-right:1px solid var(--line);cursor:help}.metric:last-child{border-right:0}.metric small{display:block;color:var(--dim);font-size:11px}.metric strong{display:block;font-size:24px;line-height:1.2;letter-spacing:-.03em;margin-top:2px}
+.activity{grid-column:1/3}.content{grid-column:3}.audience,.engagement,.quality{min-height:0}
+.group{min-width:0}.group h3{font-size:11px;color:var(--dim);font-weight:650;text-transform:uppercase;letter-spacing:.06em;margin:8px 0 4px}
+.content .group{margin-top:4px}.content .rank{height:19px}.content .group h3{margin:3px 0 2px}.audience{display:grid;grid-template-columns:1fr 1fr;column-gap:14px;align-content:start}.audience h2{grid-column:1/-1}.audience .group{margin-top:0}
+.rank{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 52px 38px;align-items:center;gap:6px;height:24px;cursor:help;border-radius:4px}.rank:hover,.rank:focus-visible{background:var(--tile)}
+.rank-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.track{height:5px;border-radius:4px;background:#31435b;overflow:hidden}.fill{display:block;height:100%;background:linear-gradient(90deg,var(--blue),var(--mint));border-radius:4px}.rank b{font-size:11px;text-align:right;font-weight:600}.more{display:block;position:relative;border:0;background:none;color:var(--mint);font:inherit;font-size:10px;margin-top:2px;padding:0;cursor:help}.more:hover .tip,.more:focus-visible .tip{display:block}
+.trend-total{font-size:26px;line-height:1;letter-spacing:-.04em}.trend-caption{color:var(--dim);font-size:11px}.trend-plot{position:relative;height:110px}.trend{display:block;width:100%;height:104px;margin-top:6px;overflow:visible}.trend .axis{stroke:var(--line);stroke-width:1}.trend .area{fill:#2d70a7;opacity:.25}.trend .line{fill:none;stroke:var(--mint);stroke-width:3;stroke-linejoin:round;stroke-linecap:round}
+.trend-marks{position:absolute;inset:0;height:104px;pointer-events:none}.mark{position:absolute;display:block;width:12px;height:12px;margin:-6px 0 0 -6px;border:2px solid var(--bg);border-radius:50%;background:var(--mint);padding:0;cursor:help;pointer-events:auto}.mark:hover,.mark:focus-visible{z-index:4;scale:1.25}
+.trend-axis{display:flex;justify-content:space-between;color:var(--dim);font-size:10px;margin-top:-1px}
+.vitals{display:grid;grid-template-columns:1fr 1fr;background:var(--tile);border-radius:7px;padding:5px 0}.vitals .metric{padding:3px 10px}.vitals .metric strong{font-size:17px}
+.tip{display:none;position:absolute;z-index:10;left:50%;bottom:calc(100% + 8px);width:max-content;max-width:min(280px,80vw);padding:7px 9px;border:1px solid #597293;border-radius:6px;background:#0c1523;color:var(--fg);font-size:11px;font-weight:400;line-height:1.3;text-align:left;white-space:normal;overflow-wrap:anywhere;box-shadow:0 8px 24px #0008;transform:translateX(-50%);pointer-events:none}
+.mark .tip{bottom:auto;top:calc(100% + 8px)}
+.mark:first-child .tip{left:0;transform:none}.mark:last-child .tip{left:auto;right:0;transform:none}
+.metric:hover .tip,.metric:focus-visible .tip,.rank:hover .tip,.rank:focus-visible .tip,.mark:hover .tip,.mark:focus-visible .tip{display:block}
+.empty{color:var(--dim);margin:5px 0}.wide{grid-column:1/-1}footer{font-size:10px;color:var(--dim);padding-bottom:8px}
+@media(min-width:900px) and (min-height:750px){main{height:calc(100vh - 115px);max-height:790px}}
+@media(max-width:900px){main{grid-template-columns:1fr 1fr;grid-template-rows:auto;min-height:0}.kpis{grid-column:1/-1}.activity,.content{grid-column:auto}.audience{grid-column:1/-1}.quality{grid-column:1/-1}}
+@media(max-width:600px){header{display:block;padding:16px}header p{display:none}.controls{margin-top:12px}.controls label{flex:1}select{width:100%}main{display:block;padding:12px 16px}.card,.kpis{margin-bottom:12px}.card{padding:14px}.kpis{grid-template-columns:repeat(2,1fr)}.metric:nth-child(2n){border-right:0}.kpis .metric{padding:7px 12px}.metric strong{font-size:20px}.audience{display:block}.trend-plot{height:106px}.trend{height:100px}.trend-marks{height:100px}footer{padding:0 16px 12px}}
 </style></head><body>
 <header><div><div class="brand">edgeglint<i>●</i>${demo ? '<span class="demo">Demo data</span>' : ''}</div><h1>Site overview</h1><p>Page activity, engagement, and quality in one view.</p></div>
 <div class="controls"><label>Site<select id="site"></select></label>

@@ -374,7 +374,7 @@ header{min-height:86px;display:flex;align-items:center;justify-content:space-bet
 h1{font-size:23px;line-height:1.1;letter-spacing:-.03em;margin:4px 0 0}header p{margin:0;color:var(--dim);font-size:12px}
 .controls{display:flex;gap:12px}.controls label{display:grid;gap:3px;color:var(--dim);font-size:11px}
 select{font:500 13px system-ui,sans-serif;padding:6px 10px;min-width:100px;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:7px}
-select:focus-visible,.metric:focus-visible,.rank:focus-visible,.mark:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
+select:focus-visible,.metric:focus-visible,.rank:focus-visible,.mark:focus-visible,.more:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
 .demo{display:inline-block;margin-left:10px;padding:1px 7px;border:1px solid var(--line);border-radius:4px;color:var(--dim);font-size:11px;font-weight:500;vertical-align:middle;text-transform:none;letter-spacing:0}
 main{display:grid;grid-template-columns:1.25fr 1fr 1fr;grid-template-rows:auto minmax(205px,1fr) minmax(340px,1.65fr);gap:12px;padding-top:14px;padding-bottom:10px;min-height:calc(100vh - 115px)}
 .card,.kpis{background:rgba(27,38,55,.96);border:1px solid var(--line);border-radius:12px;min-width:0}
@@ -395,7 +395,7 @@ main{display:grid;grid-template-columns:1.25fr 1fr 1fr;grid-template-rows:auto m
 .mark:first-child .tip{left:0;transform:none}.mark:last-child .tip{left:auto;right:0;transform:none}
 .metric:hover .tip,.metric:focus-visible .tip,.rank:hover .tip,.rank:focus-visible .tip,.mark:hover .tip,.mark:focus-visible .tip{display:block}
 .empty{color:var(--dim);margin:5px 0}.wide{grid-column:1/-1}footer{font-size:10px;color:var(--dim);padding-bottom:8px}
-@media(min-width:900px) and (min-height:750px){main{height:calc(100vh - 115px);max-height:790px}}
+@media(min-width:901px) and (min-height:750px){main{height:calc(100vh - 115px);max-height:790px}}
 @media(max-width:900px){main{grid-template-columns:1fr 1fr;grid-template-rows:auto;min-height:0}.kpis{grid-column:1/-1}.activity,.content{grid-column:auto}.audience{grid-column:1/-1}.quality{grid-column:1/-1}}
 @media(max-width:600px){header{display:block;padding:16px}header p{display:none}.controls{margin-top:12px}.controls label{flex:1}select{width:100%}main{display:block;padding:12px 16px}.card,.kpis{margin-bottom:12px}.card{padding:14px}.kpis{grid-template-columns:repeat(2,1fr)}.metric:nth-child(2n){border-right:0}.kpis .metric{padding:7px 12px}.metric strong{font-size:20px}.metric:nth-child(odd) .tip,.more .tip{left:0;transform:none}.metric:nth-child(even) .tip{left:auto;right:0;transform:none}.audience{display:block}.trend-plot{height:106px}.trend{height:100px}.trend-marks{height:100px}footer{padding:0 16px 12px}}
 </style></head><body>

@@ -293,7 +293,7 @@ export const CLIENT = `(() => {
       main.replaceChildren();
       const t = pv.totals;
       tiles("At a glance", [["Pageviews", fmt(t.pageviews)], ["Visits", fmt(t.visits)], ["Quick exits", fmt(t.quick_exits)], ["Average scroll", withUnit(t.avg_scroll, " %", 0, 10)], ["Average dwell", withUnit(t.avg_dwell, " s")]]);
-      if (!Number(t.pageviews)) {
+      if (!Number(t.pageviews) && !clk.rows.length && !err.rows.length && !out.rows.length) {
         const s = section("No measurements yet", true);
         $("p", s, "Try another site or date range. Privacy and country rules can also stop collection.").className = "empty";
         return;

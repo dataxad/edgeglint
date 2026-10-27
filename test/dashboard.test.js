@@ -521,10 +521,17 @@ test("XSS: the client puts the fixture markup into the DOM as text only", async 
 });
 
 test("zero rows: the client shows - for a null average and does not multiply null", async () => {
-  const empty = { ...DEMO, pv: { ...DEMO.pv, totals: { pageviews: 0, visits: 0, quick_exits: 0, avg_scroll: null, dwell: 0, avg_dwell: null } }, cwv: { lcp: { avg: null, n: 0 }, cls: { avg: null, n: 0 } } };
+  const empty = { ...DEMO, pv: { ...DEMO.pv, totals: { pageviews: 0, visits: 0, quick_exits: 0, avg_scroll: null, dwell: 0, avg_dwell: null } }, cwv: { lcp: { avg: null, n: 0 }, cls: { avg: null, n: 0 } }, clk: { rows: [] }, err: { rows: [] }, out: { rows: [] } };
   const dom = await run(empty);
   assert.deepEqual(dom.all.filter((e) => e.tag == "strong").map((e) => e.textContent), ["0", "0", "0", "-", "-"]);
   assert.ok(texts(dom).includes("No measurements yet"));
+});
+
+test("errors remain visible when there are no pageviews", async () => {
+  const data = { ...DEMO, pv: { ...DEMO.pv, totals: { ...DEMO.pv.totals, pageviews: 0 }, daily: [], paths: [] } };
+  const dom = await run(data);
+  assert.ok(texts(dom).includes("Errors"));
+  assert.ok(texts(dom).some((t) => t.includes("TypeError")));
 });
 
 test("a late response cannot replace the current date range", async () => {

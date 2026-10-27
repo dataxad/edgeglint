@@ -491,7 +491,7 @@ test("0 rows: a row of nulls gives 0 for totals and null for averages", async ()
 const fakeDom = (data, fetchOverride) => {
   const all = [];
   const node = (tag) => {
-    const e = { tag, children: [], attrs: {}, textContent: "", value: "", className: "", title: "" };
+    const e = { tag, children: [], attrs: {}, style: {}, textContent: "", value: "", className: "", title: "" };
     Object.defineProperty(e, "innerHTML", { set: () => { throw new Error("innerHTML"); } });
     e.append = (c) => e.children.push(c);
     e.replaceChildren = (...c) => (e.children = c);
@@ -518,12 +518,25 @@ const visibleTexts = (dom) => {
 
 test("XSS: the client puts the fixture markup into the DOM as text only", async () => {
   const dom = await run(DEMO);
-  assert.ok(texts(dom).includes("/<script>alert(1)</script>"));
+  assert.ok(texts(dom).some((t) => t.includes("/<script>alert(1)</script>")));
   assert.ok(texts(dom).some((t) => t.includes("<img src=x onerror=alert(1)>")));
   assert.ok(dom.all.every((e) => Object.values(e.attrs).every((v) => !v.includes("<"))));
   assert.ok(!dom.ids.main.children.some((c) => /Cannot load/.test(c.textContent)));
   assert.ok(texts(dom).includes("Viewport width"));
-  assert.ok(texts(dom).includes("Small (<600 px)"));
+  assert.ok(texts(dom).includes("<600 px"));
+});
+
+test("compact charts keep exact values available on focus", async () => {
+  const dom = await run(DEMO);
+  const marks = dom.all.filter((e) => e.className == "mark");
+  assert.equal(marks.length, 7);
+  assert.ok(marks.every((e) => e.tabIndex == 0 && e.attrs["aria-describedby"]));
+  assert.ok(texts(dom).some((t) => t.includes("pageviews")));
+  const widths = dom.all.filter((e) => e.className == "fill").map((e) => Number.parseFloat(e.style.width));
+  assert.ok(widths.includes(100) && widths.some((n) => n < 50));
+  const more = dom.all.find((e) => e.className == "more" && e.textContent == "+2 more");
+  assert.ok(more && more.tabIndex == 0 && more.attrs["aria-describedby"]);
+  assert.ok(more.children.some((e) => e.textContent.includes("/<script>alert(1)</script>")));
 });
 
 test("zero rows: the client shows - for a null average and does not multiply null", async () => {

@@ -511,6 +511,10 @@ const run = async (data) => {
   return dom;
 };
 const texts = (dom) => dom.all.map((e) => e.textContent);
+const visibleTexts = (dom) => {
+  const walk = (e) => [e.textContent, ...e.children.flatMap(walk)];
+  return dom.ids.main.children.flatMap(walk);
+};
 
 test("XSS: the client puts the fixture markup into the DOM as text only", async () => {
   const dom = await run(DEMO);
@@ -546,10 +550,11 @@ test("a late response cannot replace the current date range", async () => {
   for (let i = 0; i < 5; i++) await new Promise((r) => setImmediate(r));
   dom.ids.days.value = "30";
   await dom.ids.days.onchange();
-  assert.ok(texts(dom).includes("4,210"));
+  assert.ok(visibleTexts(dom).includes("4,210"));
   finishOld({ ok: true, json: async () => ({ ...DEMO.pv, totals: { ...DEMO.pv.totals, pageviews: 1 } }) });
   for (let i = 0; i < 5; i++) await new Promise((r) => setImmediate(r));
-  assert.ok(texts(dom).includes("4,210"));
+  assert.ok(visibleTexts(dom).includes("4,210"));
+  assert.ok(!visibleTexts(dom).includes("1"));
 });
 
 test("a dataset that does not exist yet gives zeros and nulls; another SQL error gives 503", async () => {

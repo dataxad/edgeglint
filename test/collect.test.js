@@ -376,7 +376,7 @@ test("a new clone can deploy: predeploy and predev build first; logs hide query 
   assert.match(w, /"observability": \{ "enabled": true, "logs": \{ "invocation_logs": true \}, "redact_query_string": true \}/);
   assert.ok(w.includes('{ "name": "PROBE_LIMITER", "namespace_id": "1002", "simple": { "limit": 5, "period": 60 } }'));
   const md = read("README.md");
-  for (const s of ["`SITES`", "`ROUTES`", "/api/t/dash/login", "/edgeglint-probe/", "`npm install`, `npm run deploy` and `npx wrangler secret put DASH_KEY`", "scroll depth, LCP and CLS come from the first beacon", "_sample_interval", "`PROBE_LIMITER`", "Pages has no rate limiter binding"]) assert.ok(md.includes(s), s);
+  for (const s of ["`SITES`", "`ROUTES`", "/api/t/dash/login", "/edgeglint-probe/", "`npm install`, `npm run deploy` and `npx wrangler secret put DASH_KEY`", "maximum-value corrections", "_sample_interval", "`PROBE_LIMITER`", "Pages has no rate limiter binding"]) assert.ok(md.includes(s), s);
   assert.doesNotMatch(md, /\?key=|__probe/);
 });
 
@@ -414,4 +414,16 @@ test("readBody stops after max bytes of an endless stream", async () => {
   assert.equal(await readBody({ body }, 4096), null);
   assert.ok(reads < 40, String(reads));
   assert.equal(await readBody(new Request("https://x.com", { method: "POST", body: "key=a" }), 4096), "key=a");
+});
+
+
+test("previous maxima use the same ranges and steps, and cannot exceed the current maxima", async () => {
+  const b = { ...base(), f: 0, prev: [5, 1000, 20] };
+  assert.equal((await run(b)).filter((r) => r.blobs[0] == "pv").length, 2);
+  for (const prev of [null, [], [5, 1000], [5, 1000, 20, 0], [-1, 1000, 20], [11, 1000, 20],
+    ["5", 1000, 20], [5, 1101, 20], [5, 1000, 21], [5, -2, 20], [8, 1000, 20], [5, 1300, 20], [5, 1000, 50]]) {
+    assert.deepEqual(await run({ ...b, prev }), [], JSON.stringify(prev));
+  }
+  assert.deepEqual(await run({ ...b, f: 1 }), []);
+  assert.deepEqual(await run({ ...b, extra: 1 }), []);
 });

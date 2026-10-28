@@ -9,6 +9,7 @@
  * The test lets one `value` through: the number in a `layout-shift` entry. The browser makes this number, thus it is not page data.
  * The test also lets one `attributes` through: the key in the object that goes to `MutationObserver.observe`.
  *
+ * `prev` holds the preceding scroll, LCP and CLS maxima. The collector uses it to correct the aggregate.
  * Each flush sends the changes since the last flush. `f` is 1 on the first flush of a page load and 0 after it.
  * `qb` is the quick-exit flag. The first pagehide flush with `persisted: false` sets it to 1 when the total foreground dwell since load is less than 5 s.
  * Each other flush sends `qb` 0.
@@ -25,7 +26,7 @@ import { normPath, regDomain, ERRS, DL, TAGS } from "./rules.js";
   const p = normPath(L.pathname), T = {}, obs = [], me = www(L.hostname);
   // Each waiting click and its timer.
   const pend = new Map();
-  let clk = {}, err = {}, out = {}, f = 1, q = 1, ms = 0, tot = 0, open = -1, r = "", sc = 0, lcp = -1, cls = -1, win = 0, wEnd = -1e9, wStart = 0, mut = 0;
+  let prev, clk = {}, err = {}, out = {}, f = 1, q = 1, ms = 0, tot = 0, open = -1, r = "", sc = 0, lcp = -1, cls = -1, win = 0, wEnd = -1e9, wStart = 0, mut = 0;
   // The tracker sends the registrable domain (regDomain) of a different host, and this site host without "www.". The server applies its rules again.
   const dom = (h) => (www(h) == me ? me : regDomain(h));
   // `document.referrer` is empty or a full URL, thus `new URL` does not throw an error.
@@ -110,12 +111,12 @@ import { normPath, regDomain, ERRS, DL, TAGS } from "./rules.js";
     obs.forEach(([o, h]) => o.takeRecords().forEach(h));
     const w = W.innerWidth, V = Object.values, c = V(clk);
     // The remainder goes into the next flush. Thus the sum of the dwell values stays near the correct time.
-    const dw = Math.min(86400, Math.round(ms / 5e3) * 5);
-    if (!f && !qb && !dw && !c.length && !n(err) && !n(out)) return;
+    const dw = Math.min(86400, Math.round(ms / 5e3) * 5), cur = [sc, lcp, cls];
+    if (!f && !qb && !dw && !c.length && !n(err) && !n(out) && cur.every((x, i) => x == prev[i])) return;
     // ponytail: the client keeps at most 50 `clk`, 20 `err` and 30 `out` items, thus the body stays below the 16 KB server limit:
     // 50 x 145 + 20 x 251 + 30 x 100 + 300 = 15570 bytes. Upgrade: remove `clk` items until the body is 16 KB or less.
-    const body = JSON.stringify({ v: 1, f, qb, p, r, d: w < 600 ? "s" : w < 1024 ? "m" : "l", sc, dw, lcp, cls, clk: c, err: V(err), out: V(out) });
-    ms -= dw * 1e3; f = 0; clk = {}; err = {}; out = {};
+    const body = JSON.stringify({ v: 1, f, qb, prev, p, r, d: w < 600 ? "s" : w < 1024 ? "m" : "l", sc, dw, lcp, cls, clk: c, err: V(err), out: V(out) });
+    prev = cur; ms -= dw * 1e3; f = 0; clk = {}; err = {}; out = {};
     const url = L.origin + "/api/t";
     if (!N.sendBeacon?.(url, body)) fetch(url, { method: "POST", body, keepalive: true, credentials: "omit" });
   };

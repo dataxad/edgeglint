@@ -181,7 +181,7 @@ They give an error if a marker gets into a beacon or dataset row. The deployment
 Source: [canary tests](../test/tracker.test.js). The live canary is a deployment result, not a test in this tree.
 
 The research measured 2,471 bytes gzip for the tracker. The build budget is at most 3,072 bytes gzip.
-The collector sends 204 in each condition. A flush writes at most 171 rows and uses rate-limit bindings when available.
+The collector sends 204 in each condition. A flush writes at most 172 rows and uses rate-limit bindings when available.
 Sources: [build](../scripts/build.js), [collector](../src/collect.js), [tests](../test/collect.test.js).
 
 Analytics Engine limits are 20 blobs, 20 doubles and one index, with 250 writes for each invocation and 16 KB of blobs for each request.

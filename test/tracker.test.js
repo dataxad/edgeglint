@@ -64,6 +64,7 @@ const tracker = ({ pathname = "/pricing", referrer = "https://www.Google.com/sea
   new Function(...Object.keys(g), DIST)(...Object.values(g));
   return Object.assign(t, {
     doc,
+    win: g.window,
     tick: (ms) => {
       t.now += ms;
       for (const x of t.timers.filter(([at]) => at <= t.now)) t.timers.splice(t.timers.indexOf(x), 1), x[1]();
@@ -394,4 +395,60 @@ test("README.md and docs/research.md give the 3,072-byte budget and the quick-ex
   // The SQL binding applies sample weights. The docs must not give manual weights.
   assert.doesNotMatch(read("docs/research.md"), /sum\(_sample_interval\)|\* _sample_interval/);
   assert.doesNotMatch(read("docs/research.md"), /2\.5 s|__probe/);
+});
+
+
+test("later maxima replace earlier snapshots after tab switches without another pageview", async () => {
+  const t = tracker({ types: ["largest-contentful-paint", "layout-shift"] });
+  const lcp = t.obs["largest-contentful-paint"], cls = t.obs["layout-shift"];
+  t.hide(); // LCP is unknown, but CLS is a measured zero.
+  t.show();
+  t.win.scrollY = 600;
+  t.on.scroll();
+  lcp.q.push({ startTime: 1200 });
+  cls.q.push({ startTime: 100, value: 0.05 });
+  t.hide(); // No dwell, clicks or errors: maxima alone must cause a flush.
+  t.show();
+  t.win.scrollY = 1000;
+  t.on.scroll();
+  lcp.q.push({ startTime: 2100 });
+  cls.q.push({ startTime: 200, value: 0.04 });
+  t.on.pagehide({ persisted: true });
+  t.on.pageshow({ persisted: true });
+  t.hide(); // No repeated correction after a back/forward cache restore.
+  assert.deepEqual(t.beacons().map(({ f, sc, lcp, cls, prev }) => [f, sc, lcp, cls, prev]), [
+    [1, 5, -1, 0, undefined], [0, 8, 1200, 50, [5, -1, 0]], [0, 10, 2100, 90, [8, 1200, 50]],
+  ]);
+  const rows = [];
+  for (const b of t.beacons()) {
+    assert.ok(valid(b));
+    await collect(new Request("https://example.com/api/t", { method: "POST", body: JSON.stringify(b) }),
+      { TELEMETRY: { writeDataPoint: (x) => rows.push(x) } }, { country: "US" });
+  }
+  assert.equal(rows.reduce((n, { doubles: d }) => n + d[0], 0), 1);
+  const weight = (d) => d[0] + (d[7] || 0);
+  const buckets = new Map();
+  for (const { doubles: d } of rows) buckets.set(d[1], (buckets.get(d[1]) || 0) + weight(d));
+  assert.deepEqual([...buckets], [[5, 0], [8, 0], [10, 1]]);
+  for (const [i, expected] of [[4, 2100], [5, 90]]) {
+    const measured = rows.map((r) => r.doubles).filter((d) => d[i] >= 0);
+    const count = measured.reduce((n, d) => n + weight(d), 0);
+    assert.equal(count, 1);
+    assert.equal(measured.reduce((n, d) => n + weight(d) * d[i], 0) / count, expected);
+  }
+  assert.equal(rows.reduce((n, { doubles: d }) => n + d[1] * weight(d), 0), 10);
+});
+
+test("unchanged or unsupported maxima add no corrections to a dwell flush", async () => {
+  const t = tracker();
+  t.hide();
+  t.show();
+  t.tick(5000);
+  t.hide();
+  const rows = [];
+  for (const b of t.beacons()) await collect(new Request("https://example.com/api/t", { method: "POST", body: JSON.stringify(b) }),
+    { TELEMETRY: { writeDataPoint: (x) => rows.push(x) } }, { country: "US" });
+  assert.equal(rows.length, 2);
+  assert.equal(rows[1].doubles[7], 0);
+  assert.deepEqual(rows.map((r) => r.doubles.slice(4, 6)), [[-1, -1], [-1, -1]]);
 });

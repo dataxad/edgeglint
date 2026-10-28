@@ -17,22 +17,22 @@ export const sql = (env, { kind, site, start, select, where = "", tail = "", par
 const N = "count()", sum = (d) => `sum(${d})`;
 // A page load writes one pv row for each flush. double1 is 1 only on the first flush, thus PV counts each pageview one time.
 // The visit flag (double7) and the quick-exit flag (double3) are 0 on each subsequent flush. double4 is the dwell time since the previous flush.
-const PV = sum("double1"), FIRST = " AND double1 = 1";
+const PV = sum("double1"), WEIGHT = "(double1 + double8)", MAXIMA = ` AND ${WEIGHT} != 0`;
 const top = (col, n = 20, w = N) => ({ select: `${col} AS k, ${w} AS n`, tail: `GROUP BY ${col} ORDER BY ${w} DESC LIMIT ${n}` });
-// LCP and CLS: -1 is "unknown", so these queries use only the rows with a value. They use only the first-flush rows, as the scroll queries do.
+// Maxima use the first snapshot and signed corrections. LCP and CLS -1 means unknown.
 // https://developers.cloudflare.com/analytics/sql-api/sql-reference/functions/ lists no percentile function that this binding can use; show the average only.
-const vital = (d) => ({ one: true, where: `${FIRST} AND ${d} >= 0`, select: `avg(${d}) AS avg, ${N} AS n` });
+const vital = (d) => ({ one: true, where: `${MAXIMA} AND ${d} >= 0`, select: `${sum(`${WEIGHT} * ${d}`)} / ${sum(WEIGHT)} AS avg, ${sum(WEIGHT)} AS n` });
 // Each dashboard data type is a set of named queries. `one` gives the first row, not the list.
 // 2026-10-23: ORDER BY must use an aggregate alias or a function expression in full. Do not use aliased grouped columns.
 export const QUERIES = {
   // The SQL API cannot do a row-level SELECT DISTINCT. Thus the site list uses GROUP BY.
   sites: { sites: { site: false, select: `index1 AS site, ${N} AS n`, tail: "GROUP BY index1 ORDER BY n DESC LIMIT 50" } },
   pv: {
-    // The average scroll uses only the first-flush rows: sum(double1 * double2) / PV.
-    totals: { one: true, select: `${PV} AS pageviews, ${sum("double7")} AS visits, ${sum("double3")} AS quick_exits, ${sum("double1 * double2")} / ${PV} AS avg_scroll, ${sum("double4")} AS dwell, ${sum("double4")} / ${PV} AS avg_dwell` },
+    // Signed corrections replace each earlier maximum in the aggregate.
+    totals: { one: true, select: `${PV} AS pageviews, ${sum("double7")} AS visits, ${sum("double3")} AS quick_exits, ${sum(`${WEIGHT} * double2`)} / ${PV} AS avg_scroll, ${sum("double4")} AS dwell, ${sum("double4")} / ${PV} AS avg_dwell` },
     daily: { select: `toStartOfInterval(timestamp, INTERVAL '1' DAY) AS k, ${PV} AS n`, tail: "GROUP BY toStartOfInterval(timestamp, INTERVAL '1' DAY) ORDER BY toStartOfInterval(timestamp, INTERVAL '1' DAY)" },
     paths: top("blob2", 20, PV), referrers: top("blob4", 20, PV), countries: top("blob5", 20, PV), browsers: top("blob6", 20, PV), os: top("blob7", 20, PV), devices: top("blob3", 20, PV),
-    scroll: { where: FIRST, select: `double2 AS k, ${N} AS n`, tail: "GROUP BY double2" },
+    scroll: { where: MAXIMA, select: `double2 AS k, ${sum(WEIGHT)} AS n`, tail: "GROUP BY double2" },
   },
   cwv: { lcp: vital("double5"), cls: vital("double6") },
   // ponytail: the top 30 (path, element) pairs of the site, not the top 30 for each path. Upgrade: add a path condition to this query.
@@ -173,7 +173,7 @@ const data = async (request, env, ctx) => {
       const out = {};
       await Promise.all(build(env, kind, site, ago(days * 864e5)).map(async ([name, one, q]) => {
         const result = await rows(env, q);
-        out[name] = one ? fill(q, result[0]) : name == "scroll" ? result.sort((a, b) => a.k - b.k) : result;
+        out[name] = one ? fill(q, result[0]) : name == "scroll" ? result.filter((r) => Number(r.n) != 0).sort((a, b) => a.k - b.k) : result;
       }));
       return json(out, 200, "max-age=60");
     } catch (e) {

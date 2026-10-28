@@ -23,7 +23,7 @@ A visitor-selected opt-out cookie and a dashboard authentication cookie have dif
 - The edge uses Cloudflare's request country code to send an empty script for the EEA, UK, Switzerland and related areas. It also sends no tracker for unknown country codes or Tor.
 - The collector discards beacons from those regions. It sends 204 in each condition.
 - The tracker sends delta beacons when the tab becomes hidden and at `pagehide`. Only the first beacon counts a pageview.
-- Subsequent beacons contain new clicks, errors, outbound clicks and foreground dwell. The back/forward cache continues the same page load.
+- Subsequent beacons contain new clicks, errors, outbound clicks, foreground dwell and maximum-value corrections. The back/forward cache continues the same page load.
 - Allowlists check paths, referrer domains, error classes and element paths. Click paths use tag names and `nth-child` only.
 - Analytics Engine keeps the rows. The dashboard reads them through `ANALYTICS_SQL`, with no API token.
 - Global Privacy Control, Do Not Track and the opt-out cookie stop collection. `/api/t?optout=1` sets the opt-out cookie for 13 months.
@@ -147,14 +147,14 @@ Before the first write, a missing dataset gives 0 counts, null averages and empt
 Analytics Engine keeps data for three months. The free allowance is 100,000 writes and 10,000 SQL reads each day.
 The research snapshot gives "Currently, you will not be billed"; check the [pricing](https://developers.cloudflare.com/analytics/analytics-engine/pricing/) before deployment.
 
-A flush writes 1 to 171 data points. Subsequent flushes can write more rows for one pageview.
+A flush writes 1 to 172 data points. Subsequent flushes can write more rows for one pageview.
 A dashboard load uses 15 queries; health uses one. Answers use a 60 s cache. Each beacon is at most 16 KB.
 See [Analytics Engine limits](https://developers.cloudflare.com/analytics/analytics-engine/limits/) for platform limits.
 
 ## Known limits
 
-- The scroll depth, LCP and CLS come from the first beacon of a page load. Subsequent maximum values do not update the dashboard.
 - A `pagehide` with `persisted: true` sends `qb` 0. If the page does not come back, the quick-exit count is too low.
+- The dashboard selects rows by flush time. A correction can refer to a snapshot before the selected period.
 - Analytics Engine samples rows. The SQL binding applies sample weights; it has no `_sample_interval` column.
 - The dashboard shows average LCP and CLS, with no percentiles. It has no session replay, heatmaps or unique-visitor counts.
 - A dashboard response from an earlier request can replace a more recent selection.

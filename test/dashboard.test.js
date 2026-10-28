@@ -199,10 +199,9 @@ test("weights: the SQL API weights count, sum and avg", () => {
   const text = (kind) => build({}, kind, "s", "t").map(([, , q]) => q.query).join("\n");
   assert.ok(text("clk").includes("sum(double1) AS clicks"));
   assert.ok(text("err").includes("sum(double3) AS n"));
-  assert.ok(text("cwv").includes(" AND double1 = 1 AND double5 >= 0"));
   for (const d of ["double5", "double6"]) {
-    assert.ok(text("cwv").includes(` AND double1 = 1 AND ${d} >= 0`));
-    assert.ok(text("cwv").includes(`avg(${d}) AS avg, count() AS n`));
+    assert.ok(text("cwv").includes(` AND (double1 + double8) != 0 AND ${d} >= 0`));
+    assert.ok(text("cwv").includes(`sum((double1 + double8) * ${d}) / sum((double1 + double8)) AS avg, sum((double1 + double8)) AS n`));
   }
   for (const kind of Object.keys(QUERIES)) {
     assert.doesNotMatch(text(kind), /_sample_interval/, kind);
@@ -256,7 +255,7 @@ test("all dashboard and health queries use listed functions and column expressio
     assert.equal(query.match(/\bSELECT\b/gi)?.length, 1, name);
     assert.doesNotMatch(query, /;|\bDISTINCT\b/i, name);
     assert.doesNotMatch(query, /_sample_interval/i, name);
-    for (const [, fn] of query.matchAll(/\b([a-z][a-z0-9_]*)\s*\(/gi)) assert.ok(allowed.has(fn.toLowerCase()), `${name}: ${fn}`);
+    for (const [, fn] of query.matchAll(/\b([a-z][a-z0-9_]*)\s*\(/gi)) assert.ok(fn == "AND" || allowed.has(fn.toLowerCase()), `${name}: ${fn}`);
     const aliases = new Set([...query.matchAll(/\bAS (\w+)/g)].map(([, alias]) => alias));
     for (const [, type, clause] of query.matchAll(/(GROUP BY|ORDER BY) (.*?)(?= GROUP BY| ORDER BY| LIMIT|$)/g)) {
       const expression = clause.replace(/'[^']*'/g, "");
@@ -268,10 +267,10 @@ test("all dashboard and health queries use listed functions and column expressio
   }
 });
 
-test("C2: pv counts use double1, visits double7, quick exits double3, dwell double4, and scroll only the first-flush rows", () => {
+test("C2: pv counts use double1, visits double7, quick exits double3, dwell double4, and scroll adds corrections", () => {
   const q = Object.fromEntries(build({}, "pv", "s", "t").map(([name, , x]) => [name, x.query]));
   const PV = "sum(double1)";
-  for (const part of [`${PV} AS pageviews`, "sum(double7) AS visits", "sum(double3) AS quick_exits", "sum(double4) AS dwell", `sum(double4) / ${PV} AS avg_dwell`, `sum(double1 * double2) / ${PV} AS avg_scroll`]) assert.ok(q.totals.includes(part), part);
+  for (const part of [`${PV} AS pageviews`, "sum(double7) AS visits", "sum(double3) AS quick_exits", "sum(double4) AS dwell", `sum(double4) / ${PV} AS avg_dwell`, `sum((double1 + double8) * double2) / ${PV} AS avg_scroll`]) assert.ok(q.totals.includes(part), part);
   assert.ok(q.daily.includes(`${PV} AS n`));
   const day = "toStartOfInterval(timestamp, INTERVAL '1' DAY)";
   assert.ok(q.daily.includes(`${day} AS k`));
@@ -280,7 +279,7 @@ test("C2: pv counts use double1, visits double7, quick exits double3, dwell doub
     assert.ok(q[name].includes(`${col} AS k, ${PV} AS n`), name);
     assert.ok(q[name].endsWith(`GROUP BY ${col} ORDER BY ${PV} DESC LIMIT 20`), name);
   }
-  assert.match(q.scroll, / AND double1 = 1 GROUP BY double2$/);
+  assert.match(q.scroll, / AND \(double1 \+ double8\) != 0 GROUP BY double2$/);
   assert.equal(DEMO.pv.totals.avg_dwell, Math.round(DEMO.pv.totals.dwell / DEMO.pv.totals.pageviews));
 });
 
@@ -314,7 +313,7 @@ test("the data route maps the SQL rows", async () => {
 
 test("the server sorts scroll buckets numerically and keeps the other row lists in SQL sequence", async () => {
   const input = [{ k: "100", n: "3" }, { k: 2, n: "7" }, { k: "10", n: "4" }, { k: 0, n: "1" }];
-  for (const scroll of [input, []]) {
+  for (const scroll of [[...input, { k: 5, n: "0" }], []]) {
     const ANALYTICS_SQL = { query: async ({ query }) => ({ data: query.endsWith("GROUP BY double2") ? [...scroll] : [...input] }) };
     const res = await get("/api/t/dash/data?kind=pv", bearer, { DASH_KEY: KEY, ANALYTICS_SQL });
     assert.equal(res.status, 200);
@@ -593,4 +592,13 @@ test("a dataset that does not exist yet gives zeros and nulls; another SQL error
   assert.deepEqual(await res.json(), { error: "query failed", retryable: false });
   res = await get("/api/t/dash/data?kind=sites", bearer, { DASH_KEY: KEY, ANALYTICS_SQL });
   assert.equal(res.status, 503);
+});
+
+
+test("maxima queries add signed corrections while pageviews keep the first-flush flag", () => {
+  const queries = Object.fromEntries(build({}, "pv", "s", "t").map(([name, , q]) => [name, q.query]));
+  assert.match(queries.totals, /sum\(double1\) AS pageviews/);
+  assert.match(queries.totals, /sum\(\(double1 \+ double8\) \* double2\) \/ sum\(double1\) AS avg_scroll/);
+  assert.match(queries.scroll, /sum\(\(double1 \+ double8\)\) AS n/);
+  assert.doesNotMatch(queries.scroll, /double1 = 1/);
 });

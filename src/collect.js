@@ -48,8 +48,11 @@ const SCHEMA = {
   out: list(50, or(tuple(text(255), is("out"), count), tuple(is(...DL), is("dl"), count))),
 };
 const KEYS = Object.keys(SCHEMA);
+// Older trackers omit prev. New trackers send the preceding maxima only after the first flush.
+const previous = tuple(SCHEMA.sc, SCHEMA.lcp, SCHEMA.cls);
 export const valid = (b) =>
-  !!b && typeof b == "object" && !Array.isArray(b) && Object.keys(b).length == KEYS.length && KEYS.every((k) => Object.hasOwn(b, k) && SCHEMA[k](b[k]));
+  !!b && typeof b == "object" && !Array.isArray(b) && Object.keys(b).length == KEYS.length + +Object.hasOwn(b, "prev") && KEYS.every((k) => Object.hasOwn(b, k) && SCHEMA[k](b[k])) &&
+  (!Object.hasOwn(b, "prev") || (b.f == 0 && previous(b.prev) && b.prev.every((x, i) => x <= [b.sc, b.lcp, b.cls][i])));
 
 // A version number has 1 to 3 digits. A longer digit run gives "other".
 const pick = (ua, table) => {
@@ -95,8 +98,12 @@ export async function collect(request, env, cf = cfOf(request), { routes = env.R
     // The quick-exit flag (double3) comes from `qb` on the pagehide flush.
     // Each row has the dwell time since the previous flush in 5 s steps (double4) and the maximum scroll step (double2).
     // LCP (double5) is in 100 ms steps. CLS x 1000 (double6) is in steps of 10.
-    w(["pv", p, b.d, ref, cf.country, pick(ua, BROWSERS), pick(ua, SYSTEMS)], [b.f, b.sc, b.qb, b.dw, b.lcp, b.cls, b.f && !own ? 1 : 0]);
-    // The schema lets a maximum of 100 `clk`, 20 `err` and 50 `out` rows. With the `pv` row, this is 171 writes.
+    // double8 corrects the previous maxima without an identifier. Legacy rows have double8 0.
+    const dims = ["pv", p, b.d, ref, cf.country, pick(ua, BROWSERS), pick(ua, SYSTEMS)];
+    const correction = b.prev && b.prev.some((x, i) => x != [b.sc, b.lcp, b.cls][i]) ? 1 : 0;
+    w(dims, [b.f, b.sc, b.qb, b.dw, b.lcp, b.cls, b.f && !own ? 1 : 0, ...(b.prev ? [correction] : [])]);
+    if (correction) w(dims, [0, b.prev[0], 0, 0, b.prev[1], b.prev[2], 0, -1]);
+    // The schema lets a maximum of 100 `clk`, 20 `err` and 50 `out` rows. With the `pv` row, this is at most 172 writes.
     for (const [el, clicks, rage, dead] of b.clk) w(["clk", p, el], [clicks, rage, dead]);
     for (const [cls, script, ln, col, n] of b.err) w(["err", p, cls, js(script)], [ln, col, n]);
     for (const [target, kind, n] of b.out) {

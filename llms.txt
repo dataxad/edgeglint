@@ -1,0 +1,17 @@
+# edgeglint
+
+> First-party web analytics on Cloudflare Workers and Analytics Engine, without measurement cookies or visitor identifiers.
+
+The country-code rule decreases coverage. No unique visitors or session replay. No consent exemption or license grant is promised.
+
+
+## Documentation
+
+- [Installation](https://raw.githubusercontent.com/dataxad/edgeglint/main/README.md): Setup and verification.
+- [Agent procedure](https://raw.githubusercontent.com/dataxad/edgeglint/main/AGENTS.md): Shared installation steps.
+- [Technical decisions](https://raw.githubusercontent.com/dataxad/edgeglint/main/docs/research.md): Dated research and legal limits.
+- [Measurement levels](https://raw.githubusercontent.com/dataxad/edgeglint/main/docs/tiers.md): Current features and proposals.
+- [Data flow](https://raw.githubusercontent.com/dataxad/edgeglint/main/docs/data-flow.md): Fields, logs, retention and notice template.
+- [Framework recipes](https://raw.githubusercontent.com/dataxad/edgeglint/main/docs/install.md): Source adapters.
+- [Adapters](https://github.com/dataxad/edgeglint/blob/main/src/adapters.js): Astro and Pages request handlers.
+- [Project page](https://dataxad.com/projects/edgeglint): Project overview.

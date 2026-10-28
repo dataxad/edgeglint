@@ -5,3 +5,8 @@ src/tracker.built.js
 .DS_Store
 src/version.js
 .wrangler/
+
+# Local runtime secrets. Keep the example file public.
+.dev.vars
+.dev.vars.*
+!.dev.vars.example

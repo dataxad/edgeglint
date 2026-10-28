@@ -17,7 +17,7 @@
   // COLLECT "off" stops all collection.
   // Set DASH_KEY as a secret: npx wrangler secret put DASH_KEY
   // Set SITES (your host names) and ROUTES (your paths), for example "SITES": "example.com", "ROUTES": "/,/about,/blog/*".
-  "vars": { "COLLECT": "on" },
+  "vars": { "COLLECT": "off", "SITES": "example.com", "ROUTES": "/" },
   // The Worker records each invocation. These records show request URLs without the query string.
   "observability": { "enabled": true, "logs": { "invocation_logs": true }, "redact_query_string": true }
   // Send the edgeglint paths of your site to this Worker:

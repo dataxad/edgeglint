@@ -108,6 +108,9 @@ Build the selected checkout before copying its source with the build output.
 - `COLLECT`: set `off` to send an empty script and stop all writes.
 - `DASH_KEY`: runtime secret for the dashboard. Use `npx wrangler secret put DASH_KEY`, or the Worker's "Variables and Secrets" settings.
 
+The template keeps collection off and uses example hosts and paths. Replace them before collection.
+Copy `.dev.vars.example` to `.dev.vars` only for local development. Set a private local key.
+
 Do not put `DASH_KEY` in Workers Builds build secrets. The runtime cannot read a build secret.
 Without `SITES`, the collector accepts other hosts. Without `ROUTES`, lowercase private path words can go into the dataset.
 Always set the two values for a production deployment. A site build can supply `handle(request, env, ctx, { routes })` as an alternative.
@@ -186,7 +189,6 @@ See [Analytics Engine limits](https://developers.cloudflare.com/analytics/analyt
 - The dashboard selects rows by flush time. A correction can refer to a snapshot before the selected period.
 - Analytics Engine samples rows. The SQL binding applies sample weights; it has no `_sample_interval` column.
 - The dashboard shows average LCP and CLS, with no percentiles. It has no session replay, heatmaps or unique-visitor counts.
-- A dashboard response from an earlier request can replace a more recent selection.
 - The geo policy does not measure the EEA, UK, Switzerland, related areas, unknown countries and Tor. It decreases measurement coverage.
 
 The project does not claim to be compliant or banner-free. Each operator must get a legal review for the deployment.
@@ -198,7 +200,8 @@ See [research and decisions](docs/research.md) for the sources, legal limits and
 ## Status
 
 Pilot 0.2.0. The author runs edgeglint on two production sites.
-This tree prepares a public release. It does not claim that a public release has occurred.
+The source is public at [dataxad/edgeglint](https://github.com/dataxad/edgeglint).
+There is no tagged release or npm package. Pilot status does not give a compatibility or legal guarantee.
 
 [Project page](https://dataxad.com/projects/edgeglint).
 

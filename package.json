@@ -1,7 +1,7 @@
 {
   "name": "edgeglint",
   "version": "0.2.0",
-  "description": "Privacy-aware first-party web analytics on Cloudflare Workers and Analytics Engine: scroll depth, click counts, errors and Core Web Vitals without cookies or identifiers",
+  "description": "First-party web analytics for Cloudflare Workers and Analytics Engine, without measurement cookies or visitor identifiers.",
   "type": "module",
   "engines": {
     "node": ">=22"
@@ -18,6 +18,56 @@
   },
   "devDependencies": {
     "esbuild": "0.28.2",
-    "wrangler": "4.151.3"
+    "wrangler": "4.154.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dataxad/edgeglint.git"
+  },
+  "homepage": "https://dataxad.com/projects/edgeglint",
+  "bugs": {
+    "url": "https://github.com/dataxad/edgeglint/issues"
+  },
+  "keywords": [
+    "analytics",
+    "web-analytics",
+    "privacy",
+    "cookieless",
+    "first-party",
+    "cloudflare",
+    "cloudflare-workers",
+    "analytics-engine",
+    "workers",
+    "core-web-vitals",
+    "scroll-depth",
+    "click-analytics"
+  ],
+  "cloudflare": {
+    "bindings": {
+      "DASH_KEY": {
+        "description": "Generate a private key with `openssl rand -hex 32`. Set it as a runtime secret, not a build secret."
+      },
+      "SITES": {
+        "description": "Your site host names, separated by commas. Example: `example.com`."
+      },
+      "ROUTES": {
+        "description": "Public page paths to measure. Example: `/,/pricing,/blog/*`."
+      },
+      "COLLECT": {
+        "description": "Keep `off` until you configure hosts, paths and bindings. Set `on` to collect."
+      },
+      "TELEMETRY": {
+        "description": "Writes to the `edgeglint` Analytics Engine dataset. Enable Analytics Engine in the account dashboard first."
+      },
+      "ANALYTICS_SQL": {
+        "description": "Reads Analytics Engine through the SQL binding. Requires Wrangler 4.145.0 or later."
+      },
+      "LIMITER": {
+        "description": "Limits requests per client IP at each Cloudflare location. Use an account-unique integer namespace ID."
+      },
+      "PROBE_LIMITER": {
+        "description": "Limits token health queries at each Cloudflare location. Use a different account-unique integer namespace ID."
+      }
+    }
   }
 }

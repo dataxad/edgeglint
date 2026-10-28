@@ -1,4 +1,5 @@
 import { test } from "node:test";
+import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import { collect, handle } from "../src/collect.js";
 import { astro, pages } from "../src/adapters.js";
@@ -33,6 +34,22 @@ test("a valid payload writes the expected rows", async () => {
     { indexes: ["example.com"], blobs: ["out", "/blog/post-1", "out", "github.com"], doubles: [1] },
     { indexes: ["example.com"], blobs: ["out", "/blog/post-1", "dl", "pdf"], doubles: [2] },
   ]);
+});
+
+test("data map names every populated collector slot, including maximum corrections", async () => {
+  const doc = readFileSync(new URL("../docs/data-flow.md", import.meta.url), "utf8");
+  const rows = [...await run(base()), ...await run({ ...base(), f: 0, prev: [0, -1, -1] })];
+  const actual = new Set(["all:timestamp"]);
+  for (const row of rows) {
+    for (const [name, values] of Object.entries(row)) {
+      const slot = { indexes: "index", blobs: "blob", doubles: "double" }[name];
+      assert.ok(slot, `undocumented row property: ${name}`);
+      values.forEach((_, i) => actual.add(`${name == "indexes" ? "all" : row.blobs[0]}:${slot}${i + 1}`));
+    }
+  }
+  const documented = new Set([...doc.matchAll(/^\| (all|pv|clk|err|out) \| (index\d+|blob\d+|double\d+|timestamp) \|/gm)]
+    .map(([, kind, slot]) => `${kind}:${slot}`));
+  assert.deepEqual(documented, actual);
 });
 
 test("referrer class, visit flag and quick exit; double3 is qb for each f", async () => {
@@ -376,7 +393,7 @@ test("a new clone can deploy: predeploy and predev build first; logs hide query 
   assert.match(w, /"observability": \{ "enabled": true, "logs": \{ "invocation_logs": true \}, "redact_query_string": true \}/);
   assert.ok(w.includes('{ "name": "PROBE_LIMITER", "namespace_id": "1002", "simple": { "limit": 5, "period": 60 } }'));
   const md = read("README.md");
-  for (const s of ["`SITES`", "`ROUTES`", "/api/t/dash/login", "/edgeglint-probe/", "`npm install`, `npm run deploy` and `npx wrangler secret put DASH_KEY`", "maximum-value corrections", "_sample_interval", "`PROBE_LIMITER`", "Pages has no rate limiter binding"]) assert.ok(md.includes(s), s);
+  for (const s of ["`SITES`", "`ROUTES`", "/api/t/dash/login", "/edgeglint-probe/", "`npm ci`, `npm run deploy` and `npx wrangler secret put DASH_KEY`", "maximum-value corrections", "_sample_interval", "`PROBE_LIMITER`", "Pages has no rate limiter binding"]) assert.ok(md.includes(s), s);
   assert.doesNotMatch(md, /\?key=|__probe/);
 });
 

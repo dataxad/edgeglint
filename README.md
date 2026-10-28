@@ -1,10 +1,50 @@
 # edgeglint
 
 edgeglint gives privacy-aware analytics on Cloudflare, with no measurement cookies or identifiers.
-It adds scroll depth, element click counts, JavaScript errors and Core Web Vitals. For specified country codes in the EEA, UK, Switzerland and related areas, the rule sends an empty tracker. It also drops reports from these requests. This rule does not show where consent is necessary.
+It adds scroll depth, element click counts, JavaScript errors and Core Web Vitals.
+For specified country codes in the EEA, UK, Switzerland and related areas, the rule sends an empty tracker.
+
+It also drops reports from these requests. This rule does not show where consent is necessary.
 
 Cloudflare Web Analytics has Core Web Vitals, but no scroll depth, element click counts or JavaScript errors.
 See the [research and decisions](docs/research.md) for the sources, market table, legal analysis and deployment lessons.
+
+## Choose an installation
+
+- New collector: use the standalone Worker below.
+- For a Worker, Astro or Pages project: use the [source adapters](docs/install.md).
+- No npm package is available. Check the use terms before installation.
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/dataxad/edgeglint)
+
+Cloudflare documents this button path, but we have not tested it with these Analytics Engine, rate-limit and Analytics SQL bindings.
+Read the [button documentation](https://developers.cloudflare.com/workers/platform/deploy-buttons/) for the platform mechanism.
+For a new project, C3 also documents this template command:
+
+```sh
+npm create cloudflare@latest -- --template https://github.com/dataxad/edgeglint
+```
+
+The C3 path is untested here. Configure the account, bindings, routes and runtime secret before collection.
+
+## Choose a level
+
+Start with **level 0**, the current measurement features, before adding a consent form or tracking service.
+It gives pageviews, referrer-based visits, scroll, clicks, errors, LCP and CLS averages, and width groups.
+The dataset has no visitor identifiers. The country-code rule decreases coverage.
+
+- **Level 1** proposes daily unique visitors with a daily identifier and a different legal review.
+- **Level 2** proposes wider coverage after consent or a French exemption profile with review approval.
+- Levels 1 and 2 are proposals. They have no flags.
+- **Level 3** uses external replay and heatmap tools. It is not part of edgeglint.
+
+Read [measurement levels](docs/tiers.md) and [data flow](docs/data-flow.md) before deployment.
+
+## For AI agents
+
+Read [AGENTS.md](AGENTS.md) for the shared installation procedure.
+Use [llms.txt](llms.txt) as the documentation index.
+Load the `edgeglint-install` skill from `.agents/skills/`, `.claude/skills/` or `skills/` when necessary.
 
 ## What it never collects
 
@@ -20,7 +60,8 @@ A visitor-selected opt-out cookie and a dashboard authentication cookie have dif
 ## How it works
 
 - `GET /api/t.js` sends a tracker of at most 3,072 bytes gzip, with `Cache-Control: no-store`.
-- The edge uses Cloudflare's request country code to send an empty script for the EEA, UK, Switzerland and related areas. It also sends no tracker for unknown country codes or Tor.
+- The edge uses Cloudflare's request country code to send an empty script for the EEA, UK, Switzerland and related areas.
+  It also sends no tracker for unknown country codes or Tor.
 - The collector discards beacons from those regions. It sends 204 in each condition.
 - The tracker sends delta beacons when the tab becomes hidden and at `pagehide`. Only the first beacon counts a pageview.
 - Subsequent beacons contain new clicks, errors, outbound clicks, foreground dwell and maximum-value corrections. The back/forward cache continues the same page load.
@@ -36,64 +77,29 @@ The [collector](src/collect.js), [tracker](src/tracker.js) and [rules](src/rules
 
 Before the first deploy, start Workers Analytics Engine one time for the account.
 In the Cloudflare dashboard, open Workers & Pages, then Analytics Engine, then select `Enable`.
-No API token can do this step. Without it, deployment stops with "You need to enable Analytics Engine".
+Without account enablement, deployment can stop with "You need to enable Analytics Engine".
 
-1. Run `npm install`. Use Node.js 22 or a subsequent version, and Wrangler 4.145.0 or a subsequent version.
+1. Run `npm ci`. Use Node.js 22 or a subsequent version, and Wrangler 4.145.0 or a subsequent version.
 2. Set the site route in `wrangler.jsonc`, for example `example.com/api/t*` in the `example.com` zone.
-3. Set `SITES` and `ROUTES` in `vars`. See the configuration below.
+3. Set `COLLECT=off`, `SITES` and `ROUTES` in `vars`. See the configuration below.
+
+   Check that rate-limit namespace IDs `1001` and `1002` are unique in your account.
 4. Run `npm run deploy`.
 5. Run `npx wrangler secret put DASH_KEY`.
 6. Add `<script defer src="/api/t.js"></script>` to the site layout.
+7. Review [data flow](docs/data-flow.md).
 
-The setup commands are `npm install`, `npm run deploy` and `npx wrangler secret put DASH_KEY`.
+   Set `COLLECT=on`. Deploy when prepared to measure.
+
+The setup commands are `npm ci`, `npm run deploy` and `npx wrangler secret put DASH_KEY`.
+
 The commands `npm run deploy` and `npm run dev` run the build first.
 The build writes `src/tracker.built.js` and `src/version.js`; these files do not belong in the repository.
 
 ## Existing Worker, Astro and Pages
 
-Run `npm run build` first. Copy the `src/` directory, with its build output, into the project as `edgeglint/`.
-Add the bindings and variables from `wrangler.jsonc` to the host project's configuration.
-
-For a Worker that you have, use `handle(request, env, ctx)` in its fetch handler:
-
-```js
-import { handle } from "./edgeglint/collect.js";
-// In the fetch handler:
-if (/^\/api\/t(\.js|\/|$)/.test(new URL(request.url).pathname)) return handle(request, env, ctx);
-```
-
-For Astro on Cloudflare, put the copied directory at `src/edgeglint/` for these import paths.
-Add `src/pages/api/t/[...rest].ts` for `/api/t` and `/api/t/*`:
-
-```ts
-import { astro } from "../../../edgeglint/adapters.js";
-export const prerender = false;
-export const ALL = astro;
-```
-
-Add `src/pages/api/t.js.ts` for the tracker script:
-
-```ts
-import { astro } from "../../edgeglint/adapters.js";
-export const prerender = false;
-export const ALL = astro;
-```
-
-Astro checks the `Origin` header on a POST to an on-demand route. A missing header gives 403. A browser `sendBeacon` sends it.
-A curl test must send `-H 'Origin: https://your-site'`.
-The login page uses `Referrer-Policy: same-origin` to prevent `Origin: null` on the login form.
-
-The Astro dev server can have no `TELEMETRY`. The collector then sends 204 without writes, so a local canary can examine the beacon.
-Local requests have no `request.cf`; a Playwright test can set `page.setExtraHTTPHeaders({"cf-ipcountry": "US"})`.
-
-For Pages Functions, add `functions/api/[[path]].js`:
-
-```js
-import { pages } from "../../edgeglint/adapters.js";
-export const onRequest = pages;
-```
-
-Add `<script defer src="/api/t.js"></script>` to the layout for each integration.
+Use the [source adapter recipes](docs/install.md). No npm package is available.
+Build the selected checkout before copying its source with the build output.
 
 ## Configuration
 
@@ -101,6 +107,9 @@ Add `<script defer src="/api/t.js"></script>` to the layout for each integration
 - `ROUTES`: full paths or prefix patterns, for example `/,/pricing,/blog/*`. Unknown page paths become `/other`; unknown error script paths become `other`.
 - `COLLECT`: set `off` to send an empty script and stop all writes.
 - `DASH_KEY`: runtime secret for the dashboard. Use `npx wrangler secret put DASH_KEY`, or the Worker's "Variables and Secrets" settings.
+
+The template keeps collection off and uses example hosts and paths. Replace them before collection.
+Copy `.dev.vars.example` to `.dev.vars` only for local development. Set a private local key.
 
 Do not put `DASH_KEY` in Workers Builds build secrets. The runtime cannot read a build secret.
 Without `SITES`, the collector accepts other hosts. Without `ROUTES`, lowercase private path words can go into the dataset.
@@ -142,6 +151,29 @@ Tokens must have 6 to 32 lowercase letters or digits. Other `p` values have no e
 Without `ANALYTICS_SQL`, the answer gives `points_last_hour: null` and the message `no ANALYTICS_SQL binding`.
 Before the first write, a missing dataset gives 0 counts, null averages and empty lists. It does not give 503.
 
+## Check the installation
+
+1. Load `/api/t.js` from an allowed-country browser without an opt-out.
+2. Send one probe from that browser's console on the site's origin:
+
+```js
+navigator.sendBeacon("/api/t", JSON.stringify({
+  v: 1, f: 1, qb: 0, p: "/edgeglint-probe/deploycheck", r: "", d: "m",
+  sc: 0, dw: 0, lcp: -1, cls: -1, clk: [], err: [], out: []
+}));
+```
+
+3. After ingestion, open `/api/t/health?p=/edgeglint-probe/deploycheck`.
+   Make sure that `probe.pv_rows` is 1 or more. A 204 response alone does not prove ingestion.
+4. Open `/api/t/dash`. Use the login form. Make sure that the page shows the site's rows.
+5. Check that an excluded-country browser receives an empty tracker and gives no probe rows in storage.
+6. Do the noncollection checks again with GPC, DNT and `/api/t?optout=1`.
+
+Use a different permitted probe token for each check to distinguish earlier rows.
+A spoofed country header does not prove the production country rule. See the local adapter test limits in [recipes](docs/install.md).
+
+Record production checks that stay unverified.
+
 ## Limits and cost
 
 Analytics Engine keeps data for three months. The free allowance is 100,000 writes and 10,000 SQL reads each day.
@@ -157,18 +189,21 @@ See [Analytics Engine limits](https://developers.cloudflare.com/analytics/analyt
 - The dashboard selects rows by flush time. A correction can refer to a snapshot before the selected period.
 - Analytics Engine samples rows. The SQL binding applies sample weights; it has no `_sample_interval` column.
 - The dashboard shows average LCP and CLS, with no percentiles. It has no session replay, heatmaps or unique-visitor counts.
-- A dashboard response from an earlier request can replace a more recent selection.
 - The geo policy does not measure the EEA, UK, Switzerland, related areas, unknown countries and Tor. It decreases measurement coverage.
 
 The project does not claim to be compliant or banner-free. Each operator must get a legal review for the deployment.
+The country rule decreases collection. GDPR, ePrivacy, local law and cross-border data rules can continue to apply.
 
-The country rule decreases collection. GDPR, ePrivacy, local law and cross-border data rules can continue to apply. Cloudflare can keep request logs. The host settings control these logs.
+Cloudflare can keep request logs. The host settings control these logs.
 See [research and decisions](docs/research.md) for the sources, legal limits and decisions.
 
 ## Status
 
 Pilot 0.2.0. The author runs edgeglint on two production sites.
-This tree prepares a public release. It does not claim that a public release has occurred.
+The source is public at [dataxad/edgeglint](https://github.com/dataxad/edgeglint).
+There is no tagged release or npm package. Pilot status does not give a compatibility or legal guarantee.
+
+[Project page](https://dataxad.com/projects/edgeglint).
 
 ## License
 

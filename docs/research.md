@@ -1,6 +1,6 @@
 # Research and decisions
 
-This record uses research from 2026-10-21 to 2026-10-25.
+This record uses research from 2026-10-21 to 2026-10-25, with corrections checked on 2026-10-28.
 Market values below are a dated snapshot. They are not current guarantees.
 The source URLs identify the source for each result.
 A value of "not verified" means that the research did not give that value.
@@ -42,7 +42,8 @@ Code: [collector](../src/collect.js), [dashboard](../src/dashboard.js).
 All star counts use the check on 2026-10-21. Other results use the research dates above.
 "Not verified" does not mean that a feature is missing.
 The feature column gives scroll / click / errors / replay, in that sequence.
-The edgeglint row gives this tree, with no published release.
+
+The edgeglint row is historical. Public source is available. There is no tag or npm release.
 
 | Project and source | License | Stars; date checked | Storage | How visitors are counted | Scroll / click / errors / replay | Last release |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -120,17 +121,20 @@ Paragraph 5(2) does not include "automatically emitted" information from that ex
 The status of HTTP headers is an open question in this research.
 Sources: [Schedule 12](https://www.legislation.gov.uk/ukpga/2025/18/schedule/12), [PECR Schedule A1](https://www.legislation.gov.uk/uksi/2003/2426/schedule/A1).
 
-The French CNIL criteria below are "not verified against cnil.fr".
-The primary pages gave HTTP 503 during research. The sources are a vendor copy and a news summary.
-Those sources give July 2025 criteria for audience measurement.
-Sources: [vendor copy of the assessment table](https://matomo.org/wp-content/uploads/2026/04/CNIL-Consent-Exemption-Self-Assessment-Table.pdf), [news summary](https://ppc.land/french-data-regulator-updates-cookie-exemption-rules-for-websites/).
+The CNIL primary page and July 2025 assessment tool were readable on 2026-10-28.
+The earlier research used a vendor copy after primary-page HTTP 503 errors.
+The primary page gives publisher-only audience measurement, anonymous outputs, no data combination and no tracking across sites.
 
-Those criteria limit events to presence, feature use and timing.
-They limit IP use to city-level data, with a minimum of the last octet removed.
-They limit identifiers to a site-specific component with a time limit, and outputs to aggregates.
+It recommends notice, a 13-month tracker life without automatic renewal, and at most 25 months of information storage.
+These are limits, not recommended increases to edgeglint retention.
+Source: [CNIL audience measurement](https://www.cnil.fr/fr/cookies-solutions-pour-les-outils-de-mesure-daudience).
 
-They do not include session replay and heatmaps. They give a 13-month tracker life and a 25-month data limit.
-Source: [assessment table copy; "not verified against cnil.fr"](https://matomo.org/wp-content/uploads/2026/04/CNIL-Consent-Exemption-Self-Assessment-Table.pdf).
+The assessment tool limits events to presence, feature use, loading, scrolling and dwell.
+It specifies minimum header data, city-level IP use with the last octet or more removed, and site-specific, time-limited hashes.
+Outputs must stay anonymous through filter combinations. The tool does not include session replay.
+
+Source: [CNIL primary assessment tool](https://www.cnil.fr/sites/default/files/2025-07/outil_d_auto-evaluation_mesure_d_audience.pdf).
+These sources do not give approval for edgeglint's current fields or a French deployment.
 
 In Planet49, C-673/17, consent applies to personal and non-personal data.
 In Breyer, C-582/14, a dynamic IP address can be personal data.
@@ -145,7 +149,8 @@ edgeglint does not claim to be compliant or banner-free.
 
 ## Design decisions
 
-Tier 1 means the bounded fields below. The collector checks each field against allowlists.
+Level 0 means the bounded fields below. See [measurement levels](tiers.md) for the proposed extensions. The collector checks each field against allowlists.
+
 A route list from the site build maps unknown paths to `/other`; identifier-like segments become `:x`.
 Referrers become a registrable domain or `other`.
 Sources: [rules](../src/rules.js), [collector](../src/collect.js).
@@ -215,3 +220,25 @@ The local source and tests below keep the resulting changes; they are not public
 6. A quota alert came from a different workload in the account. The collector used about 180 Worker requests each day.
    A game-host heartbeat used 100,000. This is a deployment observation, not an Analytics Engine cost estimate.
    Use the [health probe](../README.md#health-probe) and [pricing source](https://developers.cloudflare.com/analytics/analytics-engine/pricing/) to distinguish measurement from account-wide use.
+
+## 2026-10-27 corrections; checked 2026-10-28
+
+The country rule reads Cloudflare's request country code. It is not a legal consent map or an accurate visitor location.
+A country exclusion decreases collection. GDPR, ePrivacy and local rules can continue to apply.
+
+No cookies or identifiers does not prove anonymous data: country, time, route and behavior combinations can be personal data.
+
+Cloudflare can keep request and invocation logs in a different system from the measurement dataset.
+The standalone configuration starts invocation logs and query-string redaction. Host settings and other request-record services must get a different review.
+
+The [data map](data-flow.md) records fields, transformations, retention, logs and the adopter's data movement questions.
+It supplies the factual packet for counsel; it is not legal approval.
+
+The EU-US Data Privacy Framework has an adequacy decision for participating US organizations.
+Do not say that all EU-US data movement frameworks are invalid.
+Check the actual processor, participation, scope and data movement route for the deployed configuration.
+
+Sources: [adequacy decision](https://eur-lex.europa.eu/eli/dec_impl/2023/1795/oj/eng), [EDPB data movement note](https://www.edpb.europa.eu/system/files/2023-07/edpb_informationnoteadequacydecisionus_en.pdf).
+
+The CNIL primary sources above are readable at this time. Their conditions do not give a general consent exemption.
+France continues to have no collection pending assessment. Distinguish proposed levels from available features in [tiers.md](tiers.md).

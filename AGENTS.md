@@ -1,5 +1,6 @@
 # edgeglint installation
 
+Read [docs/kb/index.md](docs/kb/index.md) first: the one-page design in `docs/one-page/` and the KB notes (#38).
 Read [README.md](README.md) for installation terms.
 Read [docs/data-flow.md](docs/data-flow.md) before deployment.
 The source is public. There is no license grant or npm package.

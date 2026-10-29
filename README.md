@@ -42,6 +42,7 @@ Read [measurement levels](docs/tiers.md) and [data flow](docs/data-flow.md) befo
 
 ## For AI agents
 
+Read [docs/kb/index.md](docs/kb/index.md) first: the one-page design in `docs/one-page/` and the knowledge base behind it.
 Read [AGENTS.md](AGENTS.md) for the shared installation procedure.
 Use [llms.txt](llms.txt) as the documentation index.
 Load the `edgeglint-install` skill from `.agents/skills/`, `.claude/skills/` or `skills/` when necessary.

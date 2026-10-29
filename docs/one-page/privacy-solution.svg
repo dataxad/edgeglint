@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 880" width="1400" height="880" role="img" aria-labelledby="t4 d4">
+<title id="t4">Measure pages, not people: a beacon dies at the first gate it fails</title>
+<desc id="d4">edgeglint level 0 as deployed. Top: what the tracker reads and never reads, and the script gate that sends an empty script to excluded countries. Middle: the seven gates a beacon passes in order, every rejection answering 204 with nothing written, then the fields of a stored row and the dashboard read path. Bottom: the level ladder from docs/tiers.md, and bot defence as a separate optional layer. Detail: docs/kb/privacy-solution.md.</desc>
+<defs>
+<marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1c2733"/></marker>
+<marker id="a4r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#d6453d"/></marker>
+</defs>
+<style>
+text{font-family:"Avenir Next","Helvetica Neue",Helvetica,Arial,sans-serif;fill:#1c2733;font-size:15px}
+.title{font-size:32px;font-weight:700}
+.sub{font-size:14px;fill:#5b6b7b}
+.h{font-size:18px;font-weight:700}
+.b{font-weight:700}
+.s{font-size:13px;fill:#5b6b7b}
+.c{text-anchor:middle}
+.e{text-anchor:end}
+.panel{fill:#ffffff;stroke:#c9d2dc;stroke-width:1.5}
+.gate{fill:#ffffff;stroke:#1f8a8a;stroke-width:2}
+.flow{stroke:#1c2733;stroke-width:2;fill:none;marker-end:url(#a4)}
+.drop{stroke:#d6453d;stroke-width:1.5;fill:none;stroke-dasharray:4 3;marker-end:url(#a4r)}
+.slot{fill:#eef6f6;stroke:#1f8a8a;stroke-width:1.2}
+.pill{font-size:12px;font-weight:700;fill:#ffffff}
+</style>
+<rect width="1400" height="880" fill="#f4f6f8"/>
+<text x="40" y="54" class="title">Measure pages, not people: a beacon dies at the first gate it fails</text>
+<text x="40" y="80" class="sub">edgeglint · one-page design · revised 2026-10-29 · level 0 as deployed on dataxad.com and folocard.com · Cloudflare Worker + Analytics Engine · no cookies, no visitor identifier</text>
+
+<!-- browser -->
+<rect x="40" y="96" width="380" height="156" rx="10" class="panel"/>
+<text x="60" y="124" class="h">In the browser: tracker.js</text>
+<text x="60" y="148" class="s b" style="fill:#1c2733">Reads</text>
+<text x="110" y="148" class="s">pathname (never the query string), viewport width</text>
+<text x="110" y="165" class="s">group s / m / l, referrer host, scroll depth, dwell,</text>
+<text x="110" y="182" class="s">LCP, CLS, clicks, error names, outbound links</text>
+<text x="60" y="206" class="s b" style="fill:#d6453d">Never</text>
+<text x="110" y="206" class="s">cookies, storage, identifiers, page content, exact</text>
+<text x="110" y="223" class="s">width, error messages, the IP (the edge reads it)</text>
+<text x="60" y="240" class="s">GPC, DNT or opt-out cookie t=0: it sends nothing.</text>
+
+<!-- script gate -->
+<rect x="440" y="96" width="380" height="156" rx="10" class="panel"/>
+<text x="460" y="124" class="h">Before any of that: the script gate</text>
+<text x="460" y="148" class="s">GET the tracker script. The edge answers</text>
+<text x="460" y="165" class="s">with an empty script, two slashes, when the</text>
+<text x="460" y="182" class="s">request country is excluded or COLLECT is off.</text>
+<text x="460" y="199" class="s">Excluded: EEA, UK, CH and their territories,</text>
+<text x="460" y="216" class="s">unknown country XX, Tor T1. Nothing runs there.</text>
+<text x="460" y="238" class="s b" style="fill:#1f8a8a">Collection never starts there.</text>
+
+<!-- beacon arrow -->
+<line x1="230" y1="252" x2="230" y2="300" class="flow"/>
+<text x="240" y="280" class="s">POST /api/t, same origin, HTTPS, one beacon per flush</text>
+
+<!-- gauntlet -->
+<rect x="40" y="300" width="1320" height="150" rx="10" class="panel"/>
+<text x="60" y="326" class="h">At the edge: seven gates in this order (collect.js)</text>
+<g>
+<rect x="60" y="340" width="150" height="56" rx="8" class="gate"/><text x="135" y="363" class="s c" style="fill:#1c2733">1 COLLECT = off?</text><text x="135" y="380" class="s c">template default</text>
+<line x1="210" y1="368" x2="236" y2="368" class="flow"/>
+<rect x="238" y="340" width="150" height="56" rx="8" class="gate"/><text x="313" y="363" class="s c" style="fill:#1c2733">2 opted out?</text><text x="313" y="380" class="s c">GPC · DNT · t=0</text>
+<line x1="388" y1="368" x2="414" y2="368" class="flow"/>
+<rect x="416" y="340" width="150" height="56" rx="8" class="gate"/><text x="491" y="363" class="s c" style="fill:#1c2733">3 verified bot?</text><text x="491" y="380" class="s c">Cloudflare category</text>
+<line x1="566" y1="368" x2="592" y2="368" class="flow"/>
+<rect x="594" y="340" width="150" height="56" rx="8" class="gate"/><text x="669" y="363" class="s c" style="fill:#1c2733">4 User-Agent bot?</text><text x="669" y="380" class="s c">bot, crawl, spider, …</text>
+<line x1="744" y1="368" x2="770" y2="368" class="flow"/>
+<rect x="772" y="340" width="150" height="56" rx="8" class="gate"/><text x="847" y="363" class="s c" style="fill:#1c2733">5 country excluded?</text><text x="847" y="380" class="s c">EEA, UK, CH, XX, T1</text>
+<line x1="922" y1="368" x2="948" y2="368" class="flow"/>
+<rect x="950" y="340" width="150" height="56" rx="8" class="gate"/><text x="1025" y="363" class="s c" style="fill:#1c2733">6 over the rate limit?</text><text x="1025" y="380" class="s c">IP as key, never stored</text>
+<line x1="1100" y1="368" x2="1126" y2="368" class="flow"/>
+<rect x="1128" y="340" width="150" height="56" rx="8" class="gate"/><text x="1203" y="363" class="s c" style="fill:#1c2733">7 schema + allowlists</text><text x="1203" y="380" class="s c">bounded values only</text>
+<line x1="1278" y1="368" x2="1304" y2="368" class="flow"/>
+<text x="1316" y="364" class="s b" style="fill:#1f8a8a">write</text><text x="1316" y="380" class="s b" style="fill:#1f8a8a">a row</text>
+</g>
+<g>
+<line x1="135" y1="396" x2="135" y2="418" class="drop"/><line x1="313" y1="396" x2="313" y2="418" class="drop"/><line x1="491" y1="396" x2="491" y2="418" class="drop"/><line x1="669" y1="396" x2="669" y2="418" class="drop"/><line x1="847" y1="396" x2="847" y2="418" class="drop"/><line x1="1025" y1="396" x2="1025" y2="418" class="drop"/><line x1="1203" y1="396" x2="1203" y2="418" class="drop"/>
+</g>
+<rect x="60" y="420" width="1218" height="20" rx="4" fill="#fbe9e7"/>
+<text x="669" y="435" class="s c" style="fill:#a8302a">any no: 204, Cache-Control no-store, nothing written. A rejection looks exactly like an acceptance, so a 204 is not proof of ingestion.</text>
+
+<!-- row anatomy -->
+<rect x="40" y="466" width="900" height="172" rx="10" class="panel"/>
+<text x="60" y="494" class="h">One stored row (Analytics Engine, 3-month retention, sampled)</text>
+<g class="s">
+<rect x="60" y="508" width="72" height="58" class="slot"/><text x="96" y="525" class="c b" style="fill:#1c2733">index</text><text x="96" y="542" class="c">site host</text>
+<rect x="136" y="508" width="90" height="58" class="slot"/><text x="181" y="525" class="c b" style="fill:#1c2733">kind</text><text x="181" y="542" class="c">pv clk</text><text x="181" y="556" class="c">err out</text>
+<rect x="230" y="508" width="120" height="58" class="slot"/><text x="290" y="525" class="c b" style="fill:#1c2733">path</text><text x="290" y="542" class="c">ids → :x</text><text x="290" y="556" class="c">ROUTES map</text>
+<rect x="354" y="508" width="64" height="58" class="slot"/><text x="386" y="525" class="c b" style="fill:#1c2733">width</text><text x="386" y="542" class="c">s m l</text>
+<rect x="422" y="508" width="118" height="58" class="slot"/><text x="481" y="525" class="c b" style="fill:#1c2733">referrer</text><text x="481" y="542" class="c">domain · direct</text><text x="481" y="556" class="c">internal · other</text>
+<rect x="544" y="508" width="80" height="58" class="slot"/><text x="584" y="525" class="c b" style="fill:#1c2733">country</text><text x="584" y="542" class="c">ISO code</text>
+<rect x="628" y="508" width="140" height="58" class="slot"/><text x="698" y="525" class="c b" style="fill:#1c2733">browser · OS</text><text x="698" y="542" class="c">family + major</text><text x="698" y="556" class="c">OS: major on mobile</text>
+<rect x="772" y="508" width="148" height="58" class="slot"/><text x="846" y="525" class="c b" style="fill:#1c2733">numbers</text><text x="846" y="542" class="c">all bounded: scroll,</text><text x="846" y="556" class="c">dwell, LCP, CLS</text>
+<text x="60" y="588" class="s">No visitor field: two rows from one person cannot be joined. Later flushes correct maxima with a weighted row, not an ID.</text>
+<text x="60" y="605" class="s">Raw IP and raw User-Agent never reach a row: the IP is only the rate-limit key, the User-Agent only feeds the bot check</text>
+<text x="60" y="622" class="s">and the family names. Request logs redact the query string. Timestamp is the write time. No archive, no delete API.</text>
+</g>
+
+<!-- dashboard -->
+<rect x="960" y="466" width="400" height="172" rx="10" class="panel"/>
+<text x="980" y="494" class="h">Reading it back</text>
+<text x="980" y="518" class="s">The dashboard Worker queries the dataset through the</text>
+<text x="980" y="535" class="s">Analytics SQL binding: no API token, answers cached 60 s,</text>
+<text x="980" y="552" class="s">sample weights already applied. Login is a separate</text>
+<text x="980" y="569" class="s">HttpOnly cookie for 30 days, never a measurement.</text>
+<text x="980" y="593" class="s">Exports and filters must not single out a person through</text>
+<text x="980" y="610" class="s">small groups: the counsel question stays open (#34).</text>
+
+<!-- levels -->
+<rect x="40" y="642" width="700" height="216" rx="10" class="panel"/>
+<text x="60" y="670" class="h">The level ladder (docs/tiers.md): start at 0, climb only after counsel</text>
+<rect x="60" y="684" width="110" height="18" rx="9" fill="#2e8b57"/><text x="115" y="697" class="pill c">LEVEL 0 · LIVE</text>
+<text x="180" y="697" class="s">No identifiers: pageviews, referrer visits, routes, scroll, clicks, errors, LCP, CLS.</text>
+<rect x="60" y="714" width="110" height="18" rx="9" fill="#e0a020"/><text x="115" y="727" class="pill c">LEVEL 1 · #6</text>
+<text x="180" y="727" class="s">Daily unique browsers from a daily site HMAC of IP and User-Agent. WP29 and CNIL:</text>
+<text x="180" y="744" class="s">fingerprinting; rotation does not undo it. Proposed flag, not built; counsel first.</text>
+<rect x="60" y="761" width="110" height="18" rx="9" fill="#e0a020"/><text x="115" y="774" class="pill c">LEVEL 2 · #10</text>
+<text x="180" y="774" class="s">Coverage in excluded countries after valid prior consent, or a French exemption</text>
+<text x="180" y="791" class="s">profile. CONSENT_MODE and GEO_MODE=cnil proposed, not built. No earlier visits.</text>
+<rect x="60" y="808" width="110" height="18" rx="9" fill="#9aa7b4"/><text x="115" y="821" class="pill c">LEVEL 3 · EXT</text>
+<text x="180" y="821" class="s">Session replay and heatmaps: another product with its own vendor review.</text>
+<text x="60" y="848" class="s">Never "compliant" or "banner-free": no cookie is not an exemption (EDPB 2/2023 ¶53). Counsel packet #34.</text>
+
+<!-- bot defence layer -->
+<rect x="760" y="642" width="600" height="216" rx="10" class="panel"/>
+<text x="780" y="670" class="h">Bot defence: another layer, an option</text>
+<text x="780" y="694" class="s b" style="fill:#2e8b57">Today, inside the gauntlet</text>
+<text x="780" y="711" class="s">gates 3, 4, 6: the verified-bot category, the User-Agent regex, the IP rate limiter.</text>
+<text x="780" y="728" class="s">Bot rows are dropped, never labelled or stored.</text>
+<text x="780" y="752" class="s b" style="fill:#e0a020">Optional edge layer: when bot rows show, or writes near the free 100k / day</text>
+<text x="780" y="769" class="s">a Cloudflare rate or WAF rule scoped to the /api/t path (the Undermine pattern, #686);</text>
+<text x="780" y="786" class="s">a bot-score threshold where the plan has one; never zone-wide Bot Fight Mode.</text>
+<text x="780" y="810" class="s b" style="fill:#d6453d">Never for analytics</text>
+<text x="780" y="823" class="s">a client challenge (Turnstile) for a page view. A visit is not a service the visitor</text>
+<text x="780" y="838" class="s">asked us to protect, and ePrivacy 5(3) has no legitimate-interest exemption:</text>
+<text x="780" y="852" class="s">bot filtering is minimisation, not a legal basis.</text>
+<text x="40" y="875" class="s">Detail: docs/kb/privacy-solution.md · Sources: src/collect.js, src/tracker.js, docs/data-flow.md, docs/tiers.md · the Undermine admission page shows the game-side ladder</text>
+</svg>

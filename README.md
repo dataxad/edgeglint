@@ -1,13 +1,39 @@
 # edgeglint
 
-edgeglint gives privacy-aware analytics on Cloudflare, with no measurement cookies or identifiers.
-It adds scroll depth, element click counts, JavaScript errors and Core Web Vitals.
-For specified country codes in the EEA, UK, Switzerland and related areas, the rule sends an empty tracker.
+### Useful website analytics, without visitor histories.
 
-It also drops reports from these requests. This rule does not show where consent is necessary.
+See which pages get attention, how far people scroll, which buttons they click, and where JavaScript breaks.
+edgeglint runs on **Cloudflare Workers + Analytics Engine**, with a small same-origin tracker and a dashboard in your own account.
 
-Cloudflare Web Analytics has Core Web Vitals, but no scroll depth, element click counts or JavaScript errors.
-See the [research and decisions](docs/research.md) for the sources, market table, legal analysis and deployment lessons.
+**[Get started](#choose-an-installation)** · **[Why edgeglint](#why-edgeglint)** · **[What it measures](#choose-a-level)** · **[Privacy and data flow](docs/data-flow.md)** · **[Project page](https://dataxad.com/projects/edgeglint)**
+
+![edgeglint dashboard with labelled demo data: page activity, referral sources, scroll depth, element clicks, errors and performance averages](docs/images/dashboard-demo.jpg)
+
+*Actual edgeglint v0.2.0 dashboard, shown with generic demo fixtures. These are not customer traffic figures. [Screenshot provenance](docs/images/README.md).*
+
+## Why edgeglint
+
+- **Find friction beyond pageviews.** See scroll-depth buckets, element click counts, rage/dead-click heuristics, outbound links and JavaScript error classes.
+- **Keep your Cloudflare stack.** A Worker collects measurements into Analytics Engine; the dashboard queries them through the Analytics SQL binding. No separate database server to operate.
+- **Serve the tracker from your own domain.** Script, collection endpoint and dashboard share your site's origin. The tracker has a tested ceiling of **3,072 bytes gzip**.
+- **Collect less by design.** No measurement cookies, localStorage or visitor identifiers. No form contents, page text, query strings, pointer trails or session replay in the measurement dataset.
+- **See engagement and quality together.** Page activity, referral sources, scroll, clicks, error counts, and average LCP/CLS share one overview.
+- **Control what is measured.** Host/path allowlists, a collection-off switch, GPC, DNT and explicit opt-out checks are part of the collector, not optional dashboard filters.
+
+### When to choose it
+
+edgeglint fits a Cloudflare-hosted site where aggregate page and interaction measurements answer the questions you need,
+and you prefer a small, inspectable collector over operating a separate analytics database.
+Cloudflare Web Analytics already supplies Core Web Vitals; edgeglint's focus is the additional bounded interaction and error measurements.
+See the [source-linked comparison](docs/research.md#prior-art) for alternatives and the limits of that research.
+
+Choose another approach if you need unique visitors, returning-user histories, session replay, funnels tied to people,
+or complete regional coverage. edgeglint does not provide those capabilities.
+
+**Pilot, with explicit trade-offs.** The current country-code rule excludes the EEA, UK, Switzerland and related areas,
+unknown countries and Tor. This reduces coverage; it is not a legal consent map or a compliance guarantee.
+Cloudflare still processes requests, and operational logs are separate from the measurement dataset.
+**The software license is undecided and all rights remain reserved.** Review the [use terms](#license) before adoption.
 
 ## Choose an installation
 

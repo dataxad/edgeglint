@@ -2,7 +2,7 @@
 // run the timers, start a DOM change and give performance entries. A static check also examines the code text.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { gzipSync } from "node:zlib";
 import { valid, collect } from "../src/collect.js";
 import { TAGS, ERRS, DL } from "../src/rules.js";
@@ -451,4 +451,17 @@ test("unchanged or unsupported maxima add no corrections to a dwell flush", asyn
   assert.equal(rows.length, 2);
   assert.equal(rows[1].doubles[7], 0);
   assert.deepEqual(rows.map((r) => r.doubles.slice(4, 6)), [[-1, -1], [-1, -1]]);
+});
+
+test("public docs link no private dataxad repositories", () => {
+  // 2026-11-03 (#44): docs/images/README.md linked a blob in the private dataxad/dataxad.com repository, a dead link on the public mirror.
+  const docs = readdirSync(new URL("../docs", import.meta.url), { recursive: true }).filter((f) => f.endsWith(".md")).map((f) => "docs/" + f);
+  for (const f of ["README.md", "AGENTS.md", ...docs])
+    for (const m of read(f).matchAll(/github\.com\/dataxad\/([\w-]+(?:\.[\w-]+)*)/g)) assert.ok(/^edgeglint(-dev)?$/.test(m[1]), `${f}: ${m[0]} is not a public repository`);
+});
+
+test("one-page SVGs set text colour with style, not a fill attribute", () => {
+  // 2026-10-29 (#40): the page's <style> has a text{fill} rule, which beats a fill= attribute, so white labels on dark bars came out dark.
+  for (const f of readdirSync(new URL("../docs/one-page", import.meta.url)).filter((f) => f.endsWith(".svg")))
+    assert.doesNotMatch(read("docs/one-page/" + f), /<(text|tspan)[^>]* fill=["']/, f);
 });

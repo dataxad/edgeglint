@@ -1,0 +1,6 @@
+{"artifacts": [
+ {"id": "dashboard", "type": "Dashboard", "scope": "project", "url": "https://claude.ai/artifact/P6qUw3WK3J862EHzurZErg",
+  "build": "python3 scripts/dashboard_artifact.py", "every_min": 60},
+ {"id": "canvas", "type": "Design", "scope": "project", "url": "https://claude.ai/artifact/Hd9z2jbuytAiUTxecKZp7x",
+  "build": "python3 scripts/canvas_artifact.py", "every_min": 360}
+]}

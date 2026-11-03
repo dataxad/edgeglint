@@ -2,7 +2,7 @@
 // run the timers, start a DOM change and give performance entries. A static check also examines the code text.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { gzipSync } from "node:zlib";
 import { valid, collect } from "../src/collect.js";
 import { TAGS, ERRS, DL } from "../src/rules.js";
@@ -464,4 +464,11 @@ test("one-page SVGs set text colour with style, not a fill attribute", () => {
   // 2026-10-29 (#40): the page's <style> has a text{fill} rule, which beats a fill= attribute, so white labels on dark bars came out dark.
   for (const f of readdirSync(new URL("../docs/one-page", import.meta.url)).filter((f) => f.endsWith(".svg")))
     assert.doesNotMatch(read("docs/one-page/" + f), /<(text|tspan)[^>]* fill=["']/, f);
+});
+
+test("docs/artifacts.json names claude.ai artifacts whose generators exist", () => {
+  for (const a of JSON.parse(read("docs/artifacts.json")).artifacts) {
+    assert.match(a.url, /^https:\/\/claude\.ai\/artifact\/[A-Za-z0-9]+$/, a.id);
+    assert.ok(existsSync(new URL("../" + a.build.split(" ")[1], import.meta.url)), `${a.id}: ${a.build} names a missing script`);
+  }
 });

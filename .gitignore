@@ -10,3 +10,6 @@ src/version.js
 .dev.vars
 .dev.vars.*
 !.dev.vars.example
+
+# Generator output for ~/.claude/bin/artifact-keeper (docs/artifacts.json)
+.artifacts/

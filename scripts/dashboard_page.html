@@ -1,0 +1,147 @@
+<meta name="dash-one-writer">
+<!-- edgeglint dashboard page (#38). Source of files/index.html on the Dashboard-type artifact registered in
+     docs/artifacts.json; scripts/dashboard_artifact.py sends it when this file changes. Every value comes from the
+     `work` dataset through the calcs below; the text is the page's own, a script only fills the drawings. -->
+<style>
+.eg{display:grid;gap:var(--cds-gap-xl);font-family:var(--font-anthropic-sans);color:var(--color-fg)}
+.eg-head{display:grid;gap:var(--cds-gap-sm)}
+.eg-title{margin:0;font-family:var(--font-anthropic-serif);font-weight:400;font-size:var(--cds-font-size-title);text-wrap:balance}
+.eg-lede{margin:0;font-size:var(--cds-font-size-body);max-width:72ch}
+.eg-nav{display:flex;flex-wrap:wrap;gap:var(--cds-gap-xs)}
+.eg-nav a{padding:var(--cds-pad-xs) var(--cds-pad-sm);border:1px solid var(--color-border-line);border-radius:var(--cds-radius);color:var(--color-fg);text-decoration:none;font-size:var(--cds-font-size-caption)}
+.eg-sec{display:grid;gap:var(--cds-gap-md);min-width:0;scroll-margin-top:var(--cds-pad-lg)}
+.eg-sec>h2{margin:0;font-size:var(--cds-font-size-heading);font-weight:var(--cds-font-weight-medium)}
+.eg-note{margin:0;color:var(--color-fg-muted);font-size:var(--cds-font-size-caption);max-width:80ch}
+.eg-tiles{display:grid;gap:var(--cds-gap-md);grid-template-columns:repeat(auto-fit,minmax(min(100%,11rem),1fr))}
+.eg-tile{background:var(--color-panel);border:1px solid var(--color-border-line);border-radius:var(--cds-radius);padding:var(--cds-pad-md);display:grid;gap:var(--cds-gap-xs)}
+.eg-tile .eg-lab{color:var(--color-fg-muted);font-size:var(--cds-font-size-caption)}
+.eg-tile .eg-val{font-family:var(--font-anthropic-serif);font-weight:400;font-size:var(--cds-font-size-title);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.eg-tile.eg-bad{border-color:var(--color-bad)}
+.eg-box{overflow:auto;max-height:32rem;border:1px solid var(--color-border-line);border-radius:var(--cds-radius);background:var(--color-panel)}
+.eg table{border-collapse:collapse;width:100%;font-size:var(--cds-font-size-caption);font-variant-numeric:tabular-nums}
+.eg th{position:sticky;top:0;background:var(--color-panel);text-align:left;font-weight:var(--cds-font-weight-medium);color:var(--color-fg-muted);padding:var(--cds-pad-xs) var(--cds-pad-sm);border-bottom:1px solid var(--color-border-line)}
+.eg td{padding:var(--cds-pad-xs) var(--cds-pad-sm);border-bottom:1px solid var(--color-border-line);vertical-align:top;overflow-wrap:anywhere;min-width:4rem}
+.eg td a{color:inherit;text-underline-offset:3px}
+.eg-pill{display:inline-block;border-radius:999px;padding:0 var(--cds-pad-sm);border:1px solid currentColor;font-weight:var(--cds-font-weight-medium);white-space:nowrap}
+.eg-pill.eg-ok{color:var(--color-ok)}.eg-pill.eg-bad{color:var(--color-bad)}.eg-pill.eg-muted{color:var(--color-fg-muted)}
+.eg [data-dash-source-state=empty]{color:transparent}
+.eg [data-dash-source-state=refreshing]{opacity:.5;transition:opacity var(--cds-dur-slow)}
+</style>
+<div class="eg">
+<header class="eg-head">
+<h1 class="eg-title">edgeglint dashboard</h1>
+<p class="eg-lede"><b data-draw="fact" data-source="facts" data-field="value" data-where="key=open_issues">—</b> open issues and <b data-draw="fact" data-source="facts" data-field="value" data-where="key=open_prs">—</b> open pull requests on edgeglint-dev; the public mirror is <b data-draw="fact" data-source="facts" data-field="value" data-where="key=mirror">—</b> with dev main. Collected <span data-draw="fact" data-source="facts" data-field="value" data-where="key=collected_at">—</span>.</p>
+<nav class="eg-nav" aria-label="Sections"><a href="#now">Now</a><a href="#issues">Issues</a><a href="#prs">Pull requests</a><a href="#milestones">Milestones</a><a href="#merges">Merges</a><a href="#tags">Tags</a><a href="#sources">Sources</a></nav>
+</header>
+
+<section class="eg-sec" id="now">
+<h2>Now</h2>
+<div class="eg-tiles">
+<div class="eg-tile"><span class="eg-lab">Open issues</span><span class="eg-val" data-draw="fact" data-source="facts" data-field="value" data-where="key=open_issues">—</span></div>
+<div class="eg-tile"><span class="eg-lab">Open pull requests</span><span class="eg-val" data-draw="fact" data-source="facts" data-field="value" data-where="key=open_prs">—</span></div>
+<div class="eg-tile"><span class="eg-lab">Open milestones</span><span class="eg-val" data-draw="fact" data-source="facts" data-field="value" data-where="key=milestones_open">—</span></div>
+<div class="eg-tile"><span class="eg-lab">Issues without a milestone</span><span class="eg-val" data-draw="fact" data-source="facts" data-field="value" data-where="key=unmilestoned">—</span></div>
+<div class="eg-tile"><span class="eg-lab">Public mirror</span><span class="eg-val" data-draw="fact" data-source="facts" data-field="value" data-where="key=mirror">—</span><span class="eg-note">dev <span data-draw="fact" data-source="facts" data-field="value" data-where="key=dev_head">—</span>, public <span data-draw="fact" data-source="facts" data-field="value" data-where="key=public_head">—</span></span></div>
+<div class="eg-tile"><span class="eg-lab">Days since the last merge</span><span class="eg-val" data-draw="fact" data-source="facts" data-field="value" data-where="key=days_since_merge">—</span><span class="eg-note">last merge <span data-draw="fact" data-source="facts" data-field="value" data-where="key=last_merge">—</span></span></div>
+<div class="eg-tile"><span class="eg-lab">Latest tag</span><span class="eg-val" data-draw="fact" data-source="facts" data-field="value" data-where="key=latest_tag">—</span><span class="eg-note"><span data-draw="fact" data-source="facts" data-field="value" data-where="key=public_releases">—</span> public GitHub releases</span></div>
+</div>
+</section>
+
+<section class="eg-sec" id="issues">
+<h2>Open issues</h2>
+<div class="eg-box"><table data-source="issues" data-row-key="number"><thead><tr><th data-field="number">#</th><th data-field="title">Title</th><th data-field="milestone">Milestone</th><th data-field="labels">Labels</th><th data-field="updated">Updated</th></tr></thead><tbody data-draw="rows"></tbody></table></div>
+</section>
+
+<section class="eg-sec" id="prs">
+<h2>Open pull requests</h2>
+<p class="eg-note">A draft is the normal state until the critic's ACCEPT; the merge gate reads that receipt.</p>
+<div class="eg-box"><table data-source="prs" data-row-key="number"><thead><tr><th data-field="number">#</th><th data-field="title">Title</th><th data-field="state">State</th><th data-field="author">Author</th><th data-field="updated">Updated</th></tr></thead><tbody data-draw="rows"></tbody></table></div>
+</section>
+
+<section class="eg-sec" id="milestones">
+<h2>Milestones</h2>
+<div class="eg-box"><table data-source="milestones" data-row-key="title"><thead><tr><th data-field="title">Milestone</th><th data-field="state">State</th><th data-field="open">Open</th><th data-field="closed">Closed</th><th data-field="due">Due</th></tr></thead><tbody data-draw="rows"></tbody></table></div>
+</section>
+
+<section class="eg-sec" id="merges">
+<h2>Recent merges</h2>
+<div class="eg-box"><table data-source="merges" data-row-key="number"><thead><tr><th data-field="number">#</th><th data-field="title">Title</th><th data-field="merged">Merged</th></tr></thead><tbody data-draw="rows"></tbody></table></div>
+</section>
+
+<section class="eg-sec" id="tags">
+<h2>Tags</h2>
+<div class="eg-box"><table data-source="tags" data-row-key="name"><thead><tr><th data-field="name">Tag</th><th data-field="date">Date</th></tr></thead><tbody data-draw="rows"></tbody></table></div>
+</section>
+
+<section class="eg-sec" id="sources">
+<h2>Sources and refresh</h2>
+<p class="eg-note">artifact-keeper runs <code>python3 scripts/dashboard_artifact.py</code> at origin/main of dataxad/edgeglint-dev every hour and sends the dataset when it changed. Issues, pull requests, milestones and the two main commits come from the GitHub API; tags from Git. The mirror compares the tree of dev main with the tree of public main. A value the generator could not read stays blank.</p>
+</section>
+</div>
+
+<script>
+// Each calc picks one row type out of the dataset the generator wrote; the generator names the type in `t`.
+dash.calc('facts', {inputs: ['work'], fn: (work) => work.filter((r) => r.t === 'fact'), title: 'Headline figures', description: 'Rows of type fact in the work dataset.'});
+dash.calc('issues', {inputs: ['work'], fn: (work) => work.filter((r) => r.t === 'issue'), title: 'Open issues', description: 'Rows of type issue in the work dataset.'});
+dash.calc('prs', {inputs: ['work'], fn: (work) => work.filter((r) => r.t === 'pr'), title: 'Open pull requests', description: 'Rows of type pr in the work dataset.'});
+dash.calc('merges', {inputs: ['work'], fn: (work) => work.filter((r) => r.t === 'merge'), title: 'Recent merges', description: 'Rows of type merge in the work dataset.'});
+dash.calc('milestones', {inputs: ['work'], fn: (work) => work.filter((r) => r.t === 'milestone'), title: 'Milestones', description: 'Rows of type milestone in the work dataset.'});
+dash.calc('tags', {inputs: ['work'], fn: (work) => work.filter((r) => r.t === 'tag'), title: 'Tags', description: 'Rows of type tag in the work dataset.'});
+</script>
+<script>
+(() => {
+  const rowsOf = (id) => { const d = dash.data(id); return d.status === 'ok' ? d.data : null; };
+  const where = (el) => Object.fromEntries((el.dataset.where || '').split('&').filter(Boolean).map((p) => p.split('=').map(decodeURIComponent)));
+  const link = (href, text) => {
+    const a = document.createElement('a');
+    a.textContent = text;
+    if (/^https:\/\/github\.com\//.test(href)) a.href = href;
+    return a;
+  };
+  const pill = (text) => {
+    const s = document.createElement('span');
+    s.className = 'eg-pill eg-' + ({'in sync': 'ok', differs: 'bad', ready: 'ok', draft: 'muted', open: 'ok', closed: 'muted'}[text] || 'muted');
+    s.textContent = text;
+    return s;
+  };
+
+  dash.draw('fact', (el) => {
+    const rows = rowsOf(el.dataset.source);
+    const row = rows && rows.find((r) => r.key === where(el).key);
+    el.textContent = row && row.value !== null && row.value !== undefined ? String(row.value) : '—';
+    // Only the mirror fact owns its tile's alarm: the two head facts in the same tile must not clear it (review of #46).
+    const tile = el.closest('.eg-tile');
+    if (tile && where(el).key === 'mirror') tile.classList.toggle('eg-bad', row ? row.value === 'differs' : false);
+  });
+
+  dash.draw('rows', (tbody) => {
+    tbody.replaceChildren();
+    const table = tbody.closest('table');
+    const rows = rowsOf(table.dataset.source);
+    if (!rows) return;
+    const fields = [...table.querySelectorAll('th')].map((th) => th.dataset.field);
+    for (const r of rows) {
+      const tr = document.createElement('tr');
+      for (const f of fields) {
+        const td = document.createElement('td');
+        const v = r[f] === null || r[f] === undefined ? '' : String(r[f]);
+        if (f === 'title' && r.url) td.append(link(r.url, v));
+        else if (f === 'state') td.append(pill(v));
+        else td.textContent = v;
+        tr.append(td);
+      }
+      tbody.append(tr);
+    }
+  });
+
+  for (const a of document.querySelectorAll('.eg-nav a')) {
+    a.addEventListener('click', (event) => {
+      const target = document.getElementById(a.getAttribute('href').slice(1));
+      if (!target) return;
+      event.preventDefault();
+      target.scrollIntoView();
+      dash.setLink(target.id);
+    });
+  }
+})();
+</script>
